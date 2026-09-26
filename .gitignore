@@ -1,0 +1,17 @@
+/build*/
+**/bin/
+**/obj/
+/backups/
+/artifacts/
+.vs/
+.idea/
+analysis/
+*.user
+*.suo
+logs/
+resources/
+plugins/
+*.dpapi
+*.cds
+node_modules/
+dist/

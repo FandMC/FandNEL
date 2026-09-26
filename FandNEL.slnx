@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FandNEL.Core/FandNEL.Core.csproj" />
+    <Project Path="src/FandNEL.GameLauncher/FandNEL.GameLauncher.csproj" />
+    <Project Path="src/FandNEL.Proxy/FandNEL.Proxy.csproj" />
+    <Project Path="src/FandNEL/FandNEL.csproj" />
+  </Folder>
+</Solution>
