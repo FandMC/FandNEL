@@ -25,7 +25,7 @@ public sealed class GameProxyService(AccountService accounts) : IAsyncDisposable
         // 游戏内 IRC：匿名聊天室只把本局游戏 ID 作为显示名，不发送账号、密码或设备标识。
         var ircOptions = new IrcChatOptions();
         var irc = ircOptions.IsUsable
-            ? new IrcChatBridge(ircOptions, request.GameId)
+            ? new IrcChatBridge(ircOptions)
             : null;
 
         try

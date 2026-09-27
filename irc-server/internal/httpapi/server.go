@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -204,7 +205,17 @@ func (s *Server) legacySend(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) touchPresence(r *http.Request) presence.Client {
-	return s.presence.Touch(r.Header.Get(clientIDHeader), r.Header.Get(gameIDHeader))
+	return s.presence.Touch(decodeHeaderValue(r.Header.Get(clientIDHeader)), decodeHeaderValue(r.Header.Get(gameIDHeader)))
+}
+
+// 客户端用百分号编码把非 ASCII 玩家名放入兼容的 X-Game-ID Header。
+// 未编码的旧客户端值仍可直接使用。
+func decodeHeaderValue(value string) string {
+	value = strings.TrimSpace(value)
+	if decoded, err := url.PathUnescape(value); err == nil {
+		return decoded
+	}
+	return value
 }
 
 func parsePageQuery(w http.ResponseWriter, r *http.Request, maxLimit int) (int64, int, bool) {

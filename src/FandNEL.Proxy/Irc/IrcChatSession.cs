@@ -10,15 +10,14 @@ internal sealed class IrcChatSession : IDisposable
 {
     private readonly HttpClient _http;
     private readonly IrcChatOptions _options;
-    private readonly string _gameId;
+    private string _playerName = IrcConstants.UnknownPlayerName;
     private readonly string _clientId = Guid.NewGuid().ToString("N");
     private long _lastId;
     private string? _lastFailureKey;
 
-    internal IrcChatSession(IrcChatOptions options, string gameId)
+    internal IrcChatSession(IrcChatOptions options)
     {
         _options = options;
-        _gameId = string.IsNullOrWhiteSpace(gameId) ? "unknown" : gameId.Trim();
         _http = new HttpClient
         {
             BaseAddress = new Uri(options.BaseUrl.Trim().TrimEnd('/') + "/"),
@@ -27,6 +26,12 @@ internal sealed class IrcChatSession : IDisposable
     }
 
     public void Dispose() => _http.Dispose();
+
+    internal void SetPlayerName(string playerName)
+    {
+        if (!string.IsNullOrWhiteSpace(playerName))
+            Volatile.Write(ref _playerName, playerName.Trim());
+    }
 
     /// <summary>增量轮询。首次调用（lastId=0）服务端返回最近消息，是否展示由上层决定。</summary>
     internal async Task<IrcPollResult> PollAsync(CancellationToken cancellationToken)
@@ -78,7 +83,9 @@ internal sealed class IrcChatSession : IDisposable
     private HttpRequestMessage CreateRequest(HttpMethod method, string path, object body)
     {
         var request = new HttpRequestMessage(method, path) { Content = JsonContent.Create(body) };
-        request.Headers.TryAddWithoutValidation(IrcConstants.GameIdHeader, _gameId);
+        request.Headers.TryAddWithoutValidation(
+            IrcConstants.PlayerNameHeader,
+            IrcConstants.EncodeHeaderValue(Volatile.Read(ref _playerName)));
         request.Headers.TryAddWithoutValidation(IrcConstants.ClientIdHeader, _clientId);
         return request;
     }

@@ -81,6 +81,7 @@ public sealed class LoginSuccessHandler : IPacketHandler
         else if (Guid.TryParse(reader.ReadString(36), out var uuid))
             connection.PlayerUuid = uuid;
         var username = reader.ReadString(16);
+        connection.PlayerName = username;
         if (context.Version >= ProtocolVersion.V1206)
             connection.ServerState = ConnectionState.Configuration;
         else

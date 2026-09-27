@@ -56,6 +56,7 @@ public sealed class MinecraftConnection
     public ConnectionState ClientState { get => (ConnectionState)Volatile.Read(ref _clientState); internal set => Volatile.Write(ref _clientState, (int)value); }
     public ConnectionState ServerState { get => (ConnectionState)Volatile.Read(ref _serverState); internal set => Volatile.Write(ref _serverState, (int)value); }
     public Guid? PlayerUuid { get; internal set; }
+    public string? PlayerName { get; internal set; }
     internal bool AddForgeHandshakeSuffix => _options.AddForgeHandshakeSuffix;
 
     internal async Task PrepareAsync(CancellationToken cancellationToken)

@@ -9,9 +9,11 @@ internal static partial class IrcConstants
 
     internal const string PollPath = "api/chat/poll";
     internal const string SendPath = "api/chat/send";
-    internal const string GameIdHeader = "X-Game-ID";
+    // 保留 X-Game-ID 作为 wire 兼容字段，字段值是玩家在目标服务器上的游戏名。
+    internal const string PlayerNameHeader = "X-Game-ID";
     internal const string ClientIdHeader = "X-Client-ID";
     internal const string OutboundMessagePrefix = "/IRC ";
+    internal const string UnknownPlayerName = "unknown";
     internal const string CommandName = "irc";
     internal const string ChatCommandPrefix = "/irc";
     internal const string TextComponentField = "text";
@@ -33,12 +35,14 @@ internal static partial class IrcConstants
     internal static readonly TimeSpan UnexpectedPollFailureDelay = TimeSpan.FromSeconds(5);
     internal static readonly TimeSpan RecentEchoLifetime = TimeSpan.FromSeconds(60);
 
-    internal const string UsageHint = "输入 /IRC 内容 即可发送消息到聊天室";
-    internal const string EmptyCommandHint = "用法：/IRC 内容（例：/IRC 大家好）";
-    internal const string WelcomeMessagePrefix = "§b[§cES§b]§f 已接入聊天室，";
-    internal const string SendFailurePrefix = "§c发送失败：";
-    internal const string OnlineHintFormat = "聊天室在线人数：{0}";
+    internal const string UsageHint = "§b输入 /IRC 内容";
+    internal const string EmptyCommandHint = "用法：/IRC 内容（例：/IRC 测试）";
+    internal const string WelcomeMessagePrefix = "§b[§eFand§b]§a IRC连接成功!";
+    internal const string SendFailurePrefix = "§c发送失败: ";
+    internal const string OnlineHintFormat = "&bIRC在线人数: &a{0}";
     internal const string DisplayFormat = "§b[§a{0}§b]§f {1}";
+
+    internal static string EncodeHeaderValue(string value) => Uri.EscapeDataString(value);
 
     [GeneratedRegex("§.", RegexOptions.Compiled)]
     internal static partial Regex ColorCode();
