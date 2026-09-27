@@ -13,6 +13,7 @@ using FandNEL.Core.Services;
 using FandNEL.Core.Utils.Http;
 using FandNEL.Gateway;
 using FandNEL.Gateway.Management;
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Protocol.Nbt;
 
 internal static class Program
@@ -80,6 +81,7 @@ internal static class Program
             await CheckBedrockRequiresActivationAsync().ConfigureAwait(false);
             await CheckLocalWebSocketOrderAsync().ConfigureAwait(false);
             CheckNbtCodec();
+            CheckNetworkNbtCodec();
         }
 
         private static void CheckNbtCodec()
@@ -95,6 +97,18 @@ internal static class Program
             AssertThrows<InvalidDataException>(() => NbtCodec.Read(new byte[] { 9, 0, 0, 1, 0, 0, 0, 1 }), "列表类型不匹配未拒绝");
             AssertThrows<InvalidDataException>(() => NbtCodec.Read(new byte[] { 7, 0, 0, 255, 255, 255, 255 }), "负数组长度未拒绝");
             AssertThrows<InvalidDataException>(() => NbtCodec.Read(NbtCodec.Write(new NbtString("long")), new NbtLimits(MaxStringBytes: 1)), "字符串限制未生效");
+        }
+
+        private static void CheckNetworkNbtCodec()
+        {
+            var source = new NbtCompound().Set("text", new NbtString("聊天"));
+            using var writer = new PacketWriter();
+            writer.WriteNetworkNbtCompound(source);
+
+            var reader = new PacketReader(writer.ToArray());
+            var decoded = reader.ReadNetworkNbtCompound();
+            Assert(decoded["text"] is NbtString { Value: "聊天" }, "网络 NBT Compound round-trip 失败");
+            Assert(reader.Remaining == 0, "网络 NBT 读取后存在多余数据");
         }
 
         private static async Task CheckPublicX19ApiAsync()

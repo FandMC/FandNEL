@@ -50,6 +50,7 @@ public sealed class MinecraftConnection
     public ServerTarget Target { get; }
     public PlayerRole Role { get; }
     internal IChannel ClientChannel => _client;
+    internal bool IsClosed => Volatile.Read(ref _closed) != 0 || !_client.Active;
     public IChannel? ServerChannel { get; private set; }
     public ProtocolVersion Version { get => (ProtocolVersion)Volatile.Read(ref _version); internal set => Volatile.Write(ref _version, (int)value); }
     public ConnectionState ClientState { get => (ConnectionState)Volatile.Read(ref _clientState); internal set => Volatile.Write(ref _clientState, (int)value); }

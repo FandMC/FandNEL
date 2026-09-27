@@ -1,7 +1,6 @@
 using System.Net;
 using FandNEL.Accounts;
 using FandNEL.Core.Connection;
-using FandNEL.Core.Storage;
 using FandNEL.Proxy.Irc;
 using FandNEL.Proxy.Models;
 using FandNEL.Proxy.Services;
@@ -23,10 +22,10 @@ public sealed class GameProxyService(AccountService accounts) : IAsyncDisposable
         if (!int.TryParse(session.UserId, out var numericUserId))
             throw new InvalidOperationException("网易账号 ID 不是有效的数字。");
 
-        // 游戏内 IRC（/IRC 与 NeoEastSide 聊天室互通）：参数固化在代码默认值，不读写配置文件。
+        // 游戏内 IRC：匿名聊天室只把本局游戏 ID 作为显示名，不发送账号、密码或设备标识。
         var ircOptions = new IrcChatOptions();
         var irc = ircOptions.IsUsable
-            ? new IrcChatBridge(ircOptions, new DeviceIdentity().GetOrCreateHashed())
+            ? new IrcChatBridge(ircOptions, request.GameId)
             : null;
 
         try
