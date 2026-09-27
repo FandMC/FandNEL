@@ -23,8 +23,8 @@ public sealed class GameProxyService(AccountService accounts) : IAsyncDisposable
         if (!int.TryParse(session.UserId, out var numericUserId))
             throw new InvalidOperationException("网易账号 ID 不是有效的数字。");
 
-        // 游戏内 IRC（/IRC 与 NeoEastSide 聊天室互通）：配置默认生成在 %LOCALAPPDATA%/FandNEL/irc.json。
-        var ircOptions = IrcChatOptions.Load();
+        // 游戏内 IRC（/IRC 与 NeoEastSide 聊天室互通）：参数固化在代码默认值，不读写配置文件。
+        var ircOptions = new IrcChatOptions();
         var irc = ircOptions.IsUsable
             ? new IrcChatBridge(ircOptions, new DeviceIdentity().GetOrCreateHashed())
             : null;
