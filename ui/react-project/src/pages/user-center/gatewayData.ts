@@ -64,7 +64,7 @@ export function useGatewayList<T>(type: string) {
             setError(String(envelope.message ?? "Gateway request failed."));
             continue;
           }
-          const list = ["items", "entities", "data", "sessions", "games", "plugins", "mods"]
+          const list = ["items", "entities", "data", "sessions", "games", "mods"]
             .map((key) => envelope[key])
             .find((value) => Array.isArray(value));
           setItems(Array.isArray(list) ? list.filter(Boolean) as T[] : []);
@@ -81,60 +81,4 @@ export function useGatewayList<T>(type: string) {
   }, [gateway.messages, type]);
 
   return { gateway, items, setItems, loading, error, refresh };
-}
-
-const pluginStoreKey = "plugin-store";
-const pluginUpdatesEvent = "codexus:plugin-updates";
-
-export interface PluginUpdateRecord {
-  id: string;
-  waiting_restart?: boolean;
-}
-
-export interface InstalledPluginVersion extends PluginUpdateRecord {
-  version: string;
-}
-
-export function findOutdatedPlugins<T extends InstalledPluginVersion>(
-  installed: T[],
-  available: Array<{ id: string; version: string }>,
-): T[] {
-  const versions = new Map(available.map((item) => [item.id.toUpperCase(), item.version]));
-  return installed.filter((item) => {
-    const availableVersion = versions.get(item.id.toUpperCase());
-    return availableVersion !== undefined && availableVersion !== item.version;
-  });
-}
-
-export function readPluginUpdates(): PluginUpdateRecord[] {
-  try {
-    const stored = JSON.parse(sessionStorage.getItem(pluginStoreKey) ?? "null") as {
-      state?: { oldPlugins?: PluginUpdateRecord[] };
-    } | null;
-    return Array.isArray(stored?.state?.oldPlugins) ? stored.state.oldPlugins : [];
-  } catch {
-    return [];
-  }
-}
-
-export function writePluginUpdates(items: PluginUpdateRecord[]): void {
-  sessionStorage.setItem(
-    pluginStoreKey,
-    JSON.stringify({ state: { oldPlugins: items }, version: 0 }),
-  );
-  window.dispatchEvent(new CustomEvent(pluginUpdatesEvent));
-}
-
-export function usePluginUpdates(): PluginUpdateRecord[] {
-  const [items, setItems] = useState(readPluginUpdates);
-  useEffect(() => {
-    const update = () => setItems(readPluginUpdates());
-    window.addEventListener(pluginUpdatesEvent, update);
-    window.addEventListener("storage", update);
-    return () => {
-      window.removeEventListener(pluginUpdatesEvent, update);
-      window.removeEventListener("storage", update);
-    };
-  }, []);
-  return items;
 }

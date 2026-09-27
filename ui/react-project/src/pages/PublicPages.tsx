@@ -27,7 +27,6 @@ export function GatewayPage() {
   const [initializing, setInitializing] = useState(true);
   const [autoAttempting, setAutoAttempting] = useState(true);
   const autoAttemptStarted = useRef(false);
-  const debugPreview = import.meta.env.DEV && searchParams.get("debug") === "1";
 
   useEffect(() => {
     if (gateway.status === "connected") navigate("/user-center", { replace: true });
@@ -35,13 +34,6 @@ export function GatewayPage() {
 
   useEffect(() => {
     let cancelled = false;
-    if (debugPreview) {
-      setInitializing(false);
-      setAutoAttempting(false);
-      return () => {
-        cancelled = true;
-      };
-    }
     if (autoAttemptStarted.current) return () => {
       cancelled = true;
     };
@@ -89,7 +81,7 @@ export function GatewayPage() {
   // Auto-connect is intentionally a one-shot operation for this page. Gateway
   // callbacks are recreated when their internal URL state changes; depending on
   // them here would cancel an in-flight handshake and leave the page loading.
-  }, [debugPreview, defaultEndpoint]);
+  }, [defaultEndpoint]);
 
   const connect = async (event: FormEvent) => {
     event.preventDefault();

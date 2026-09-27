@@ -17,32 +17,6 @@ export interface AuthResponse {
   user: UserProfile;
 }
 
-export interface PluginVersion {
-  version: string;
-  downloadUrl: string;
-  releaseNotes: string;
-}
-
-export interface Plugin {
-  id: string;
-  slug: string;
-  name: string;
-  summary: string;
-  description: string;
-  iconUrl: string;
-  price: number;
-  currency: string;
-  tags: string[];
-  versions: PluginVersion[];
-}
-
-export interface PluginList {
-  items: Plugin[];
-  page: number;
-  pageSize: number;
-  total: number;
-}
-
 export interface LegacyComponentSummary {
   id: string;
   name: string;
@@ -74,21 +48,6 @@ export interface LegacyAnnouncement {
   content: string;
   date: string;
   read: boolean;
-}
-
-export interface Order {
-  id: string;
-  pluginSlug: string;
-  amount: number;
-  currency: string;
-  status: string;
-  createdAt: string;
-  checkoutUrl?: string;
-}
-
-export interface CartItem {
-  plugin: Plugin;
-  quantity: number;
 }
 
 export interface GatewayMessage<T = unknown> {

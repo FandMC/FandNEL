@@ -1,12 +1,8 @@
-import { Archive, Copy, Download, FlaskConical, FolderOpen, PackageOpen, Plus, Trash2 } from "lucide-react";
+import { Copy, Download, FlaskConical, FolderOpen, PackageOpen, Plus, Trash2 } from "lucide-react";
 import { ReactNode, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth, useGateway, useToasts } from "../../context/AppContext";
-import {
-  downloadComponent,
-  getComponentsVersionByIds,
-} from "../../lib/legacyPublicApi";
-import { consumeGatewayMessages, findOutdatedPlugins, parseGatewayPayload, useGatewayList, writePluginUpdates } from "./gatewayData";
+import { useNavigate } from "react-router-dom";
+import { useGateway, useToasts } from "../../context/AppContext";
+import { consumeGatewayMessages, parseGatewayPayload, useGatewayList } from "./gatewayData";
 import type { GatewayMessage } from "../../types";
 
 interface GameSession {
@@ -31,21 +27,6 @@ interface LaunchProgress {
 
 interface ModRecord {
   path: string;
-}
-
-interface InstalledPlugin {
-  id: string;
-  name: string;
-  description: string;
-  version: string;
-  author: string;
-  status: string;
-  waiting_restart?: boolean;
-}
-
-interface InstallProgress {
-  progress: number;
-  status?: unknown;
 }
 
 function Intro({ title, description }: { title: string; description: string }) {
@@ -142,130 +123,6 @@ export function ModsPage() {
             <button type="button" title="Delete Mod" onClick={() => { if (window.confirm("Are you sure you want to delete this mod? This action cannot be undone.")) void gateway.send("delete_mod", mod.path); }}><Trash2 /></button>
           </div>
         )) : <div className="management-v253-empty"><span><PackageOpen /></span><h3>No mods installed</h3><p>Click &quot;Add Mod&quot; to upload .jar files.</p></div>}
-      </ManagementCard>
-    </main>
-  );
-}
-
-export function InstalledPluginsPage() {
-  const { gateway, items, loading, refresh } = useGatewayList<InstalledPlugin>("query_plugins");
-  const { user, getAccessToken } = useAuth();
-  const { notify } = useToasts();
-  const [updateIds, setUpdateIds] = useState<string[]>([]);
-  const [updatingId, setUpdatingId] = useState("");
-  const [progress, setProgress] = useState(0);
-  const updatingIdRef = useRef("");
-  const completionRef = useRef<(() => void) | null>(null);
-  const previousMessage = useRef<GatewayMessage | undefined>(gateway.messages.at(-1));
-
-  useEffect(() => {
-    if (loading) return;
-    if (!items.length) {
-      setUpdateIds([]);
-      writePluginUpdates([]);
-      return;
-    }
-    let cancelled = false;
-    void getAccessToken()
-      .then((token) => getComponentsVersionByIds(items.map((plugin) => plugin.id), token))
-      .then((response) => {
-        if (cancelled) return;
-        const outdated = findOutdatedPlugins(items, response.items);
-        setUpdateIds(outdated.map((plugin) => plugin.id));
-        writePluginUpdates(outdated);
-      })
-      .catch((error) => notify(error instanceof Error ? error.message : "Unable to check plugin versions.", "error"));
-    return () => { cancelled = true; };
-  }, [getAccessToken, items, loading, notify]);
-
-  useEffect(() => {
-    const pending = consumeGatewayMessages(gateway.messages, previousMessage);
-    for (const message of pending) {
-      if (message.type !== "report_install_plugin_progress") continue;
-      const report = parseGatewayPayload<InstallProgress>(message.payload);
-      setProgress(report.progress);
-      if (!report.status) continue;
-      completionRef.current?.();
-      completionRef.current = null;
-      updatingIdRef.current = "";
-      setUpdatingId("");
-      setProgress(0);
-      void refresh();
-    }
-  }, [gateway.messages, refresh]);
-
-  const canUpdate = (plugin: InstalledPlugin) => updateIds.some((id) => id === plugin.id) && !plugin.waiting_restart;
-
-  const updatePlugin = async (plugin: InstalledPlugin): Promise<void> => {
-    if (updatingIdRef.current && updatingIdRef.current !== plugin.id) throw new Error("Another update is already in progress.");
-    if (updatingIdRef.current === plugin.id) return;
-    updatingIdRef.current = plugin.id;
-    setUpdatingId(plugin.id);
-    setProgress(0);
-    const completion = new Promise<void>((resolve) => { completionRef.current = resolve; });
-    try {
-      const token = await getAccessToken();
-      await gateway.send("update", { id: user?.id || localStorage.getItem("userId") || "", token });
-      const downloaded = await downloadComponent(plugin.id, token);
-      await gateway.send("update_plugin", {
-        id: plugin.id,
-        old: plugin.version,
-        info: JSON.stringify({ id: user?.id || localStorage.getItem("userId") || "", plugin: downloaded }),
-      });
-      return completion;
-    } catch (error) {
-      completionRef.current = null;
-      updatingIdRef.current = "";
-      setUpdatingId("");
-      setProgress(0);
-      throw error;
-    }
-  };
-
-  const updateAll = async () => {
-    if (updatingIdRef.current) return;
-    for (const plugin of items.filter(canUpdate)) {
-      try {
-        await updatePlugin(plugin);
-      } catch (error) {
-        notify(error instanceof Error ? error.message : `Failed to update ${plugin.name}.`, "error");
-      }
-    }
-  };
-
-  const updateCount = items.filter(canUpdate).length;
-  const updating = Boolean(updatingId);
-
-  const pluginRows = items.map((plugin) => {
-    const updatingThis = updatingId === plugin.id;
-    const needsUpdate = canUpdate(plugin);
-    const statusLabel = plugin.waiting_restart ? "Restart Pending" : needsUpdate ? "Update Available" : plugin.status;
-    const statusClass = plugin.waiting_restart ? "restart" : needsUpdate ? "update" : plugin.status === "Online" ? "online" : "neutral";
-    return (
-      <div className="plugin-v253-row" key={plugin.id}>
-        <div className="plugin-v253-main">
-          <div><h3>{plugin.name}</h3><span>v{plugin.version}</span></div>
-          <p>{plugin.description}</p>
-          <em>By {plugin.author}</em>
-          {updatingThis ? <div className="game-progress"><p><span>Updating...</span><span>{progress}%</span></p><i><b style={{ width: `${progress}%` }} /></i></div> : null}
-        </div>
-        <div className="plugin-v253-author"><small>Author</small><strong>{plugin.author}</strong></div>
-        <div className="plugin-v253-actions">
-          <span className={statusClass}>{statusLabel}</span>
-          <div>
-            {needsUpdate && !updatingThis ? <button className="update" type="button" disabled={updating} onClick={() => void updatePlugin(plugin).catch((error) => notify(error instanceof Error ? error.message : "Plugin update failed.", "error"))}>Update</button> : null}
-            <button type="button" disabled={updating} onClick={() => void gateway.send("uninstall_plugin", plugin.id)} title="Uninstall"><Trash2 /></button>
-          </div>
-        </div>
-      </div>
-    );
-  });
-
-  return (
-    <main className="workspace-page management-page management-v253-page">
-      <Intro title="Manage Plugins" description="Enable, disable, or uninstall plugins to customize your Codexus Platform experience." />
-      <ManagementCard title={`Installed Plugins (${items.length})`} actions={<>{updateCount > 0 ? <button className="management-primary-button compact" type="button" disabled={updating} onClick={() => void updateAll()}>Update All ({updateCount})</button> : null}<button className="management-outline-button compact" type="button" disabled={updating} onClick={() => void gateway.send("restart")}>Restart Service</button></>}>
-        {loading ? <div className="management-v253-loading">Fetching installed plugins...</div> : items.length ? pluginRows : <div className="management-v253-empty"><span><Archive /></span><h3>No plugins installed</h3><p><Link to="/plugins">Browse the store</Link> to add functionality.</p></div>}
       </ManagementCard>
     </main>
   );

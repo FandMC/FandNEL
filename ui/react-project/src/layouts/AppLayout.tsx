@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { DebugNavigator } from "../components/DebugNavigator";
 import { Brand } from "../components/ui";
 import { useGateway, useToasts } from "../context/AppContext";
 import { consumeGatewayMessages } from "../pages/user-center/gatewayData";
@@ -19,7 +18,6 @@ import type { GatewayMessage, ToastMessage } from "../types";
 export function AppLayout() {
   return (
     <div className="app-root">
-      {import.meta.env.DEV ? <DebugNavigator /> : null}
       <header className="topbar">
         <Brand />
       </header>
@@ -357,9 +355,6 @@ export function RequireUserCenter({ children }: { children: ReactNode }) {
   const gateway = useGateway();
   const location = useLocation();
   const navigate = useNavigate();
-  const debugAccess = isDebugAccess(location.search);
-
-  if (debugAccess) return children;
   if (gateway.status === "connected") return children;
   if (!gateway.isCurrentSessionConnected || !gateway.lastConnectedUrl) {
     return <Navigate to="/gateway" replace />;
@@ -374,12 +369,4 @@ export function RequireUserCenter({ children }: { children: ReactNode }) {
       <button onClick={() => connecting ? gateway.disconnect() : void gateway.connect(gateway.lastConnectedUrl!).catch(() => undefined)}>{connecting ? "Cancel" : "Retry"}</button>
     </main>
   );
-}
-
-function isDebugAccess(search: string): boolean {
-  if (!import.meta.env.DEV) return false;
-  const params = new URLSearchParams(search);
-  const explicitAccess = params.get("debug") === "1" || params.get("id")?.startsWith("debug-") === true;
-  if (explicitAccess) sessionStorage.setItem("codexus.debug-access", "1");
-  return explicitAccess || sessionStorage.getItem("codexus.debug-access") === "1";
 }

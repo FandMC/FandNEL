@@ -8,7 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useGateway, useToasts } from "../context/AppContext";
 import type { GatewayMessage } from "../types";
 
@@ -58,46 +58,6 @@ const cardDefinitions: Record<Exclude<ServerBrowserKind, "bedrock-rental" | "bed
     rental: false,
     bedrock: true,
   },
-};
-
-const debugCardServers: Record<Exclude<ServerBrowserKind, "bedrock-rental" | "bedrock-realms">, Resource> = {
-  "java-server": {
-    entity_id: "debug-java-server",
-    name: "Debug Java Server",
-    brief_summary: "Debug Java server",
-    online_count: 10,
-    title_image_url: "",
-  },
-  "java-rental": {
-    entity_id: "debug-java-rental",
-    server_name: "Debug Java Rental",
-    name: "debug-java-rental",
-    player_count: 6,
-    has_pwd: "1",
-    image_url: "",
-  },
-  "bedrock-server": {
-    item_id: "debug-netserver",
-    res_name: "Debug Bedrock NetServer",
-    brief: "Debug Bedrock server",
-    online_num: 12,
-    title_image_url: "",
-  },
-};
-
-const debugBedrockRental: Resource = {
-  entity_id: "debug-realms",
-  server_name: "Debug Bedrock Realms",
-  name: "debug-bedrock-realms",
-  player_count: 8,
-  capacity: 30,
-  mc_version: "1.21",
-  server_type: "Survival",
-  like_num: 12,
-  status: 1,
-  has_pwd: "0",
-  pvp: false,
-  min_level: 0,
 };
 
 function parsePayload(payload: unknown): unknown {
@@ -224,8 +184,6 @@ function PasswordDialog({
 
 function CardServerBrowser({ kind }: { kind: Exclude<ServerBrowserKind, "bedrock-rental" | "bedrock-realms"> }) {
   const definition = cardDefinitions[kind];
-  const [searchParams] = useSearchParams();
-  const debugPreview = import.meta.env.DEV && searchParams.get("debug") === "1";
   const navigate = useNavigate();
   const gateway = useGateway();
   const initialState = useRef(loadCardState(definition.storageKey));
@@ -258,7 +216,7 @@ function CardServerBrowser({ kind }: { kind: Exclude<ServerBrowserKind, "bedrock
   }, [definition.storageKey]);
 
   const loadNextPage = useCallback(async () => {
-    if (debugPreview || gateway.status !== "connected" || requestInFlight.current || !hasMoreRef.current) return;
+    if (gateway.status !== "connected" || requestInFlight.current || !hasMoreRef.current) return;
     requestInFlight.current = true;
     setLoading(true);
     setError("");
@@ -273,7 +231,7 @@ function CardServerBrowser({ kind }: { kind: Exclude<ServerBrowserKind, "bedrock
       setLoading(false);
       setError(requestError instanceof Error ? requestError.message : "Unable to load servers.");
     }
-  }, [debugPreview, definition.requestType, definition.rental, gateway.send, gateway.status]);
+  }, [definition.requestType, definition.rental, gateway.send, gateway.status]);
 
   useEffect(() => {
     if (gateway.status === "connected" && hasMoreRef.current && savedServersRef.current.length === 0) void loadNextPage();
@@ -347,7 +305,7 @@ function CardServerBrowser({ kind }: { kind: Exclude<ServerBrowserKind, "bedrock
     setSearchResults(null);
     void loadNextPage();
   };
-  const servers = searchResults ?? (savedServers.length ? savedServers : debugPreview ? [debugCardServers[kind]] : []);
+  const servers = searchResults ?? savedServers;
 
   const openServer = (server: Resource) => {
     const id = text(server, definition.bedrock ? "item_id" : "entity_id");
@@ -458,14 +416,12 @@ function persistRealmModItemIds(sid: string, itemIds: string[]) {
 }
 
 function BedrockRealmsBrowser() {
-  const [searchParams] = useSearchParams();
-  const debugPreview = import.meta.env.DEV && searchParams.get("debug") === "1";
   const navigate = useNavigate();
   const gateway = useGateway();
   const { notify } = useToasts();
   const [userId, setUserId] = useState("");
   const [realms, setRealms] = useState<RealmServer[]>([]);
-  const [loading, setLoading] = useState(!debugPreview);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [selectedSid, setSelectedSid] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -499,14 +455,14 @@ function BedrockRealmsBrowser() {
   }, []);
 
   const loadRealms = useCallback(() => {
-    if (debugPreview || gateway.status !== "connected" || !userIdRef.current) return;
+    if (gateway.status !== "connected" || !userIdRef.current) return;
     setLoading(true);
     setError("");
     void gateway.send("realm_list", { id: userIdRef.current }).catch((requestError) => {
       setError(requestError instanceof Error ? requestError.message : "Unable to load realms.");
       setLoading(false);
     });
-  }, [debugPreview, gateway.send, gateway.status]);
+  }, [gateway.send, gateway.status]);
 
   const requestDetails = useCallback((list: RealmServer[]) => {
     for (const realm of list) {
@@ -636,10 +592,6 @@ function BedrockRealmsBrowser() {
   const openRealm = (realm: RealmServer) => {
     setSelectedSid(realm.sid);
     selectedRef.current = realm;
-    if (debugPreview) {
-      navigate(`/user-center/bedrock-realms/launch?id=${encodeURIComponent(realm.sid)}&name=${encodeURIComponent(realm.name)}&realm=1&host=127.0.0.1&port=19132`);
-      return;
-    }
     setEntering(true);
     void gateway.send("realm_enter", { id: userId, sid: realm.sid }).catch(() => setEntering(false));
   };
@@ -650,7 +602,7 @@ function BedrockRealmsBrowser() {
   };
 
   const removeRealm = () => {
-    if (!selectedSid || debugPreview) return;
+    if (!selectedSid) return;
     void gateway.send("realm_remove", { id: userId, sid: selectedSid }).catch(() => {});
   };
 
@@ -920,15 +872,13 @@ function RealmInviteDialog({ onClose, onSubmit }: { onClose(): void; onSubmit(co
 }
 
 function BedrockRentalBrowser() {
-  const [searchParams] = useSearchParams();
-  const debugPreview = import.meta.env.DEV && searchParams.get("debug") === "1";
   const navigate = useNavigate();
   const gateway = useGateway();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [servers, setServers] = useState<Resource[]>(debugPreview ? [debugBedrockRental] : []);
-  const [total, setTotal] = useState(debugPreview ? 1 : 0);
-  const [loading, setLoading] = useState(!debugPreview);
+  const [servers, setServers] = useState<Resource[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [passwordTarget, setPasswordTarget] = useState<{ id: string; name: string } | null>(null);
   const [passwordError, setPasswordError] = useState("");
@@ -945,14 +895,14 @@ function BedrockRentalBrowser() {
   useEffect(() => { setPage(1); }, [query]);
 
   useEffect(() => {
-    if (debugPreview || gateway.status !== "connected") return;
+    if (gateway.status !== "connected") return;
     setLoading(true);
     setError("");
     void gateway.send("pe_rental_games", { offset: (page - 1) * 30 }).catch((requestError) => {
       setError(requestError instanceof Error ? requestError.message : "Unable to load servers.");
       setLoading(false);
     });
-  }, [debugPreview, gateway.send, gateway.status, page]);
+  }, [gateway.send, gateway.status, page]);
 
   useEffect(() => {
     const pending = nextMessages(gateway.messages, lastHandled.current);

@@ -1,6 +1,5 @@
 import { Check, LoaderCircle, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { SelectMenu } from "../../components/JavaJoinGameModal";
 import { useGateway, useToasts } from "../../context/AppContext";
 import type { GatewayMessage } from "../../types";
@@ -32,14 +31,6 @@ interface PurchaseSkinResponse {
 type ApplyState = "idle" | "purchasing" | "applied";
 
 const pageSize = 20;
-const debugSkin: JavaSkin = {
-  entity_id: "debug-java-skin",
-  name: "Classic Adventurer",
-  brief_summary: "A custom Minecraft character skin available for your Java Edition role.",
-  like_num: 128,
-  title_image_url: "https://crafatar.com/renders/body/8667ba71-b85a-4004-af54-457a9734eed7?overlay",
-};
-const debugAccount: GatewayAccount = { id: "debug-java-account", alias: "Debug Java Account" };
 
 function accountLabel(account: GatewayAccount): string {
   return account.alias || account.id;
@@ -59,15 +50,15 @@ function JavaSkinCard({ skin, onSelect }: { skin: JavaSkin; onSelect(): void }) 
   );
 }
 
-function ApplySkinModal({ skinId, debugPreview, onClose }: { skinId: string; debugPreview: boolean; onClose(): void }) {
+function ApplySkinModal({ skinId, onClose }: { skinId: string; onClose(): void }) {
   const gateway = useGateway();
   const { notify } = useToasts();
-  const [accounts, setAccounts] = useState<GatewayAccount[]>(debugPreview ? [debugAccount] : []);
+  const [accounts, setAccounts] = useState<GatewayAccount[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [state, setState] = useState<ApplyState>("idle");
   const previousMessage = useRef<GatewayMessage | undefined>(gateway.messages.at(-1));
   const pollTimer = useRef<number | null>(null);
-  const accountRef = useRef<GatewayAccount | null>(debugPreview ? debugAccount : null);
+  const accountRef = useRef<GatewayAccount | null>(null);
 
   const stopPolling = useCallback(() => {
     if (pollTimer.current !== null) window.clearTimeout(pollTimer.current);
@@ -106,12 +97,11 @@ function ApplySkinModal({ skinId, debugPreview, onClose }: { skinId: string; deb
   }, [gateway.send, notify, stopPolling]);
 
   useEffect(() => {
-    if (debugPreview) return;
     void gateway.send("get_accounts", "available").catch((error) => {
       notify(error instanceof Error ? error.message : "Unable to load accounts.", "error");
     });
     return stopPolling;
-  }, [debugPreview, gateway.send, notify, stopPolling]);
+  }, [gateway.send, notify, stopPolling]);
 
   useEffect(() => {
     const pending = consumeGatewayMessages(gateway.messages, previousMessage);
@@ -159,13 +149,6 @@ function ApplySkinModal({ skinId, debugPreview, onClose }: { skinId: string; deb
     if (!account) return;
     accountRef.current = account;
     setState("purchasing");
-    if (debugPreview) {
-      window.setTimeout(() => {
-        setState("applied");
-        window.setTimeout(close, 500);
-      }, 700);
-      return;
-    }
     try {
       await gateway.send("java_edition/skin_details", { user_id: account.id, item_id: skinId });
     } catch (error) {
@@ -208,10 +191,8 @@ function ApplySkinModal({ skinId, debugPreview, onClose }: { skinId: string; deb
 export function JavaSkinsPage() {
   const gateway = useGateway();
   const { notify } = useToasts();
-  const [searchParams] = useSearchParams();
-  const debugPreview = import.meta.env.DEV && searchParams.get("debug") === "1";
-  const [skins, setSkins] = useState<JavaSkin[]>(debugPreview ? [debugSkin] : []);
-  const [hasMore, setHasMore] = useState(!debugPreview);
+  const [skins, setSkins] = useState<JavaSkin[]>([]);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [selectedSkinId, setSelectedSkinId] = useState<string | null>(null);
   const offsetRef = useRef(0);
@@ -219,7 +200,7 @@ export function JavaSkinsPage() {
   const previousMessage = useRef<GatewayMessage | undefined>(gateway.messages.at(-1));
 
   const loadMore = useCallback(async () => {
-    if (debugPreview || gateway.status !== "connected" || requestInFlight.current || !hasMore) return;
+    if (gateway.status !== "connected" || requestInFlight.current || !hasMore) return;
     requestInFlight.current = true;
     setLoading(true);
     try {
@@ -229,11 +210,11 @@ export function JavaSkinsPage() {
       setLoading(false);
       notify(error instanceof Error ? error.message : "Unable to load skins.", "error");
     }
-  }, [debugPreview, gateway.send, gateway.status, hasMore, notify]);
+  }, [gateway.send, gateway.status, hasMore, notify]);
 
   useEffect(() => {
-    if (!debugPreview && gateway.status === "connected" && skins.length === 0) void loadMore();
-  }, [debugPreview, gateway.status, loadMore, skins.length]);
+    if (gateway.status === "connected" && skins.length === 0) void loadMore();
+  }, [gateway.status, loadMore, skins.length]);
 
   useEffect(() => {
     const pending = consumeGatewayMessages(gateway.messages, previousMessage);
@@ -289,7 +270,7 @@ export function JavaSkinsPage() {
         {loading ? <div>Loading more servers...</div> : null}
         {!hasMore && !loading ? <><div>You've reached the end of the server list</div><button type="button" onClick={reload}>Reload</button></> : null}
       </div>
-      {selectedSkinId ? <ApplySkinModal skinId={selectedSkinId} debugPreview={debugPreview} onClose={() => setSelectedSkinId(null)} /> : null}
+      {selectedSkinId ? <ApplySkinModal skinId={selectedSkinId} onClose={() => setSelectedSkinId(null)} /> : null}
     </main>
   );
 }

@@ -35,7 +35,7 @@ function asResources(payload: unknown): Resource[] {
     return value.filter((item): item is Resource => Boolean(item && typeof item === "object"));
   }
   if (value && typeof value === "object") {
-    for (const key of ["items", "entities", "data", "entity", "servers", "games", "plugins", "mods", "sessions", "accounts"]) {
+    for (const key of ["items", "entities", "data", "entity", "servers", "games", "mods", "sessions", "accounts"]) {
       const nested = (value as Resource)[key];
       if (Array.isArray(nested)) {
         return nested.filter((item): item is Resource => Boolean(item && typeof item === "object"));
@@ -141,13 +141,9 @@ function ServerDetails({ rental = false }: { rental?: boolean }) {
   const password = searchParams.get("password") ?? "";
   const responseType = rental ? "rental_games_detail" : "net_games_detail";
   const resource = useGatewayResource(responseType, responseType, rental && password.trim() ? `${id}:${password}` : id);
-  const debugPreview = import.meta.env.DEV && (searchParams.get("debug") === "1" || id.startsWith("debug-"));
-  const debugItem: JavaGameDetails = rental
-    ? { image_url: "/avatar.jpg", owner_id: "Debug Owner", begin_time: Math.floor(Date.now() / 1000), mc_version: "1.21.1", server_ip: "127.0.0.1", server_port: 25565, brief_summary: "<p>Debug Java rental server</p>" }
-    : { entity_id: id || "debug-server", video_info_list: [], brief_image_urls: ["/avatar.jpg", "/mask.png"], developer_name: "Debug Developer", publish_time: Math.floor(Date.now() / 1000), mc_version_list: [{ name: "1.21.1", mcversionid: 12101 }], server_address: "127.0.0.1", server_port: 25565, detail_description: "<p>Debug Java server</p>" };
   const item = resource.items[0]
     ?? (!resource.error && resource.response && typeof resource.response === "object" && !Array.isArray(resource.response) ? resource.response as Resource : undefined)
-    ?? (debugPreview ? debugItem : undefined);
+    ;
   const [joinOpen, setJoinOpen] = useState(false);
   const kind: JavaGameKind = rental ? "rental_game" : "net_game";
 
@@ -155,7 +151,7 @@ function ServerDetails({ rental = false }: { rental?: boolean }) {
     <div className={`workspace-page detail-page ${rental ? "rental-detail-page" : "server-detail-page"}`}>
       {rental ? <PageHeader title={name} description={id ? `Server ID: ${id}` : "Server details"} onBack={() => navigate(-1)} actions={<Button className="java-join-trigger" disabled={!item} onClick={() => setJoinOpen(true)}>Join Game</Button>} /> : <header className="server-details-v253-header"><button type="button" aria-label="Back" onClick={() => navigate(-1)}><ChevronLeft /></button><h1>{name}</h1></header>}
       {!item && resource.loading ? <JavaGameDetailsSkeleton rental={rental} /> : item ? <JavaGameDetailsPanel details={item} rental={rental} onJoin={() => setJoinOpen(true)} /> : resource.error ? <div className="java-server-unavailable" role="alert"><p>{resource.error}</p><Button onClick={() => void resource.refresh()}>Retry</Button></div> : <div className="java-server-unavailable">Server information not available</div>}
-      {joinOpen && item ? <JavaJoinGameModal kind={kind} gameId={id} gameName={name} details={item} debugPreview={debugPreview} onClose={() => setJoinOpen(false)} /> : null}
+      {joinOpen && item ? <JavaJoinGameModal kind={kind} gameId={id} gameName={name} details={item} onClose={() => setJoinOpen(false)} /> : null}
     </div>
   );
 }

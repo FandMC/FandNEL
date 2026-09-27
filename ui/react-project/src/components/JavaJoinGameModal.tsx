@@ -11,8 +11,6 @@ export type JavaGameDetails = Record<string, unknown>;
 type Account = Record<string, unknown>;
 type Role = Record<string, unknown>;
 
-const debugAccounts: Account[] = [{ id: "debug-java-account", alias: "Debug Java Account" }];
-const debugRoles: Role[] = [{ name: "Debug Java Role", delete_ts: 0, expire_time: 0 }];
 
 function parsePayload(payload: unknown): unknown {
   let value = payload;
@@ -179,25 +177,23 @@ export function JavaJoinGameModal({
   gameId,
   gameName,
   details,
-  debugPreview,
   onClose,
 }: {
   kind: JavaGameKind;
   gameId: string;
   gameName: string;
   details: JavaGameDetails;
-  debugPreview: boolean;
   onClose(): void;
 }) {
   const gateway = useGateway();
   const navigate = useNavigate();
   const { user, getAccessToken } = useAuth();
   const { notify } = useToasts();
-  const [accounts, setAccounts] = useState<Account[]>(debugPreview ? debugAccounts : []);
-  const [roles, setRoles] = useState<Role[]>(debugPreview ? debugRoles : []);
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [accountIndex, setAccountIndex] = useState(() => Number(sessionStorage.getItem("X-CURRENT-USER-INDEX") ?? "0"));
   const [roleIndex, setRoleIndex] = useState(0);
-  const [loadingRoles, setLoadingRoles] = useState(!debugPreview);
+  const [loadingRoles, setLoadingRoles] = useState(true);
   const [launching, setLaunching] = useState(false);
   const [joining, setJoining] = useState(false);
   const [createRoleOpen, setCreateRoleOpen] = useState(false);
@@ -236,9 +232,9 @@ export function JavaJoinGameModal({
   }, [createRoleOpen, onClose]);
 
   useEffect(() => {
-    if (debugPreview || gateway.status !== "connected") return;
+    if (gateway.status !== "connected") return;
     void gateway.send("get_accounts", "available").catch((error) => notify(error instanceof Error ? error.message : "Unable to load Java accounts.", "error"));
-  }, [debugPreview, gateway.send, gateway.status, notify]);
+  }, [gateway.send, gateway.status, notify]);
 
   useEffect(() => {
     const previous = handledMessageRef.current;
@@ -363,7 +359,7 @@ export function JavaJoinGameModal({
     setRoleIndex(0);
     sessionStorage.setItem("X-CURRENT-USER-INDEX", String(index));
     sessionStorage.setItem("X-CURRENT-USER-ID", value(accounts[index], "id"));
-    if (!debugPreview && accounts[index]) void requestRoles(accounts[index]).catch((error) => notify(error instanceof Error ? error.message : "Unable to load roles.", "error"));
+    if (accounts[index]) void requestRoles(accounts[index]).catch((error) => notify(error instanceof Error ? error.message : "Unable to load roles.", "error"));
   };
 
   return (

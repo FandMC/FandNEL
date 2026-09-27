@@ -1,4 +1,3 @@
-import type { Order, Plugin, PluginList } from "../types";
 import { NEXUS_API } from "./legacyAuth";
 
 export const API_BASE = NEXUS_API.domain;
@@ -53,19 +52,3 @@ export async function apiRequest<T>(
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers });
   return readResponse<T>(response);
 }
-
-export const onlineApi = {
-  health: () => apiRequest<{ status?: string; service?: string }>("/health"),
-  plugins: (query = "", page = 1, pageSize = 30) => {
-    const search = new URLSearchParams({ query, page: String(page), pageSize: String(pageSize) });
-    return apiRequest<PluginList>(`/plugins?${search}`);
-  },
-  plugin: (slug: string) => apiRequest<Plugin>(`/plugins/${encodeURIComponent(slug)}`),
-  createOrder: (pluginSlug: string, accessToken: string) =>
-    apiRequest<Order>(
-      "/orders",
-      { method: "POST", body: JSON.stringify({ pluginSlug }) },
-      accessToken,
-    ),
-  orders: (accessToken: string) => apiRequest<Order[]>("/orders", {}, accessToken),
-};

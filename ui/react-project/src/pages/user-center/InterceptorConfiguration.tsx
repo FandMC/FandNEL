@@ -69,39 +69,6 @@ interface InterceptorConfigContextValue {
 
 const InterceptorConfigContext = createContext<InterceptorConfigContextValue | null>(null);
 
-const debugConfig: InterceptorConfig = {
-  game_id: "debug-java-server",
-  server_name: "Debug Java Server",
-  user_id: "debug-java-account",
-  nickname: "Debug Java Role",
-  server_version: "1.21.4",
-  local_address: "127.0.0.1",
-  local_port: 25565,
-  forward_address: "play.example.net",
-  forward_port: 25565,
-  mod_info: JSON.stringify({ mods: [{ id: "codexus-interceptor", md5: "d41d8cd98f00b204e9800998ecf8427e" }] }),
-};
-
-const debugDetails: NetGameDetails = {
-  entity_id: "debug-java-server",
-  name: "Debug Java Server",
-  brief_image_urls: ["https://api.mcsrvstat.us/icon/play.hypixel.net"],
-  server_address: "play.example.net",
-  server_port: 25565,
-  mc_version_list: [{ mcversionid: "debug-version", name: "1.21.4" }],
-};
-
-const debugServer: NetGameSummary = {
-  entity_id: "debug-java-server-2",
-  name: "Alternative Java Server",
-  brief_summary: "A Java Edition server available as the new interceptor upstream.",
-  online_count: 42,
-  title_image_url: "https://api.mcsrvstat.us/icon/mc.hypixel.net",
-};
-
-const debugAccount: GatewayAccount = { id: "debug-java-account", alias: "Debug Java Account" };
-const debugRole: GatewayRole = { name: "Debug Java Role", expire_time: 0 };
-
 function useInterceptorConfig(): InterceptorConfigContextValue {
   const value = useContext(InterceptorConfigContext);
   if (!value) throw new Error("useInterceptorConfig must be used inside InterceptorConfigurationLayout");
@@ -141,10 +108,9 @@ export function InterceptorConfigurationLayout() {
   const { notify } = useToasts();
   const [searchParams] = useSearchParams();
   const id = searchParams.get("id") ?? "";
-  const debugPreview = import.meta.env.DEV && searchParams.get("debug") === "1";
-  const [config, setConfig] = useState<InterceptorConfig | null>(debugPreview ? debugConfig : null);
-  const [details, setDetails] = useState<NetGameDetails | null>(debugPreview ? debugDetails : null);
-  const configRef = useRef<InterceptorConfig | null>(debugPreview ? debugConfig : null);
+  const [config, setConfig] = useState<InterceptorConfig | null>(null);
+  const [details, setDetails] = useState<NetGameDetails | null>(null);
+  const configRef = useRef<InterceptorConfig | null>(null);
   const previousMessage = useRef<GatewayMessage | undefined>(gateway.messages.at(-1));
 
   useEffect(() => {
@@ -152,11 +118,11 @@ export function InterceptorConfigurationLayout() {
   }, [config]);
 
   useEffect(() => {
-    if (!id || debugPreview || gateway.status !== "connected") return;
+    if (!id || gateway.status !== "connected") return;
     void gateway.send("java_edition/network/session/config", id).catch((error) => {
       notify(error instanceof Error ? error.message : "Unable to load interceptor configuration.", "error");
     });
-  }, [debugPreview, gateway.send, gateway.status, id, notify]);
+  }, [gateway.send, gateway.status, id, notify]);
 
   useEffect(() => {
     const pending = consumeGatewayMessages(gateway.messages, previousMessage);
@@ -200,14 +166,14 @@ export function InterceptorConfigurationLayout() {
   );
 }
 
-function ServerChangerModal({ sessionId, debugPreview, onClose }: { sessionId: string; debugPreview: boolean; onClose(): void }) {
+function ServerChangerModal({ sessionId, onClose }: { sessionId: string; onClose(): void }) {
   const gateway = useGateway();
   const { notify } = useToasts();
-  const [servers, setServers] = useState<NetGameSummary[]>(debugPreview ? [debugServer] : []);
+  const [servers, setServers] = useState<NetGameSummary[]>([]);
   const [searchResults, setSearchResults] = useState<NetGameSummary[]>([]);
   const [query, setQuery] = useState("");
   const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(!debugPreview);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [phase, setPhase] = useState<"selecting" | "switching" | "finished">("selecting");
   const listRef = useRef<HTMLDivElement>(null);
@@ -216,7 +182,7 @@ function ServerChangerModal({ sessionId, debugPreview, onClose }: { sessionId: s
   const debounceTimer = useRef<number | null>(null);
 
   const loadServers = useCallback(async (nextOffset: number) => {
-    if (debugPreview || gateway.status !== "connected" || requestInFlight.current) return;
+    if (gateway.status !== "connected" || requestInFlight.current) return;
     requestInFlight.current = true;
     setLoading(true);
     try {
@@ -226,11 +192,11 @@ function ServerChangerModal({ sessionId, debugPreview, onClose }: { sessionId: s
       setLoading(false);
       notify(error instanceof Error ? error.message : "Unable to load servers.", "error");
     }
-  }, [debugPreview, gateway.send, gateway.status, notify]);
+  }, [gateway.send, gateway.status, notify]);
 
   useEffect(() => {
-    if (!debugPreview) void loadServers(0);
-  }, [debugPreview, loadServers]);
+    void loadServers(0);
+  }, [loadServers]);
 
   useEffect(() => {
     const pending = consumeGatewayMessages(gateway.messages, previousMessage);
@@ -280,10 +246,6 @@ function ServerChangerModal({ sessionId, debugPreview, onClose }: { sessionId: s
       setSearchResults([]);
       return;
     }
-    if (debugPreview) {
-      setSearchResults([debugServer].filter((server) => server.name.toLowerCase().includes(query.toLowerCase())));
-      return;
-    }
     debounceTimer.current = window.setTimeout(() => {
       if (requestInFlight.current) return;
       requestInFlight.current = true;
@@ -296,17 +258,10 @@ function ServerChangerModal({ sessionId, debugPreview, onClose }: { sessionId: s
     return () => {
       if (debounceTimer.current !== null) window.clearTimeout(debounceTimer.current);
     };
-  }, [debugPreview, gateway.send, query]);
+  }, [gateway.send, query]);
 
   const selectServer = (server: NetGameSummary) => {
     setPhase("switching");
-    if (debugPreview) {
-      window.setTimeout(() => {
-        setPhase("finished");
-        window.setTimeout(onClose, 500);
-      }, 700);
-      return;
-    }
     void gateway.send("net_games_detail", server.entity_id, "server_changer_modal").catch((error) => {
       setPhase("selecting");
       notify(error instanceof Error ? error.message : "Unable to select server.", "error");
@@ -354,11 +309,11 @@ function ServerChangerModal({ sessionId, debugPreview, onClose }: { sessionId: s
   );
 }
 
-function RoleChangerModal({ sessionId, details, debugPreview, onClose }: { sessionId: string; details: NetGameDetails; debugPreview: boolean; onClose(): void }) {
+function RoleChangerModal({ sessionId, details, onClose }: { sessionId: string; details: NetGameDetails; onClose(): void }) {
   const gateway = useGateway();
   const { notify } = useToasts();
-  const [accounts, setAccounts] = useState<GatewayAccount[]>(debugPreview ? [debugAccount] : []);
-  const [roles, setRoles] = useState<GatewayRole[]>(debugPreview ? [debugRole] : []);
+  const [accounts, setAccounts] = useState<GatewayAccount[]>([]);
+  const [roles, setRoles] = useState<GatewayRole[]>([]);
   const [accountIndex, setAccountIndex] = useState(0);
   const [roleIndex, setRoleIndex] = useState(0);
   const [loadingRoles, setLoadingRoles] = useState(false);
@@ -368,17 +323,16 @@ function RoleChangerModal({ sessionId, details, debugPreview, onClose }: { sessi
   const previousMessage = useRef<GatewayMessage | undefined>(gateway.messages.at(-1));
 
   const requestRoles = useCallback((accountId: string) => {
-    if (debugPreview) return;
     setLoadingRoles(true);
     void gateway.send("get_roles", { id: accountId, game: details.entity_id, type: "net_game" }).catch((error) => {
       setLoadingRoles(false);
       notify(error instanceof Error ? error.message : "Unable to load roles.", "error");
     });
-  }, [debugPreview, details.entity_id, gateway.send, notify]);
+  }, [details.entity_id, gateway.send, notify]);
 
   useEffect(() => {
-    if (!debugPreview) void gateway.send("get_accounts", "available", "role_changer_modal");
-  }, [debugPreview, gateway.send]);
+    void gateway.send("get_accounts", "available", "role_changer_modal");
+  }, [gateway.send]);
 
   useEffect(() => {
     const pending = consumeGatewayMessages(gateway.messages, previousMessage);
@@ -412,13 +366,6 @@ function RoleChangerModal({ sessionId, details, debugPreview, onClose }: { sessi
     const role = roles[roleIndex];
     if (!account || !role) return;
     setPhase("switching");
-    if (debugPreview) {
-      window.setTimeout(() => {
-        setPhase("finished");
-        window.setTimeout(onClose, 500);
-      }, 700);
-      return;
-    }
     void gateway.send("java_edition/session/switch_role", { id: sessionId, user_id: account.id, role: role.name }).catch((error) => {
       setPhase("selecting");
       notify(error instanceof Error ? error.message : "Unable to switch role.", "error");
@@ -475,7 +422,6 @@ function ConfigSkeleton() {
 export function InterceptorConfigPage() {
   const { id, config, details } = useInterceptorConfig();
   const [searchParams] = useSearchParams();
-  const debugPreview = import.meta.env.DEV && searchParams.get("debug") === "1";
   const [serverChangerOpen, setServerChangerOpen] = useState(false);
   const [roleChangerOpen, setRoleChangerOpen] = useState(false);
   const mods = useMemo(() => {
@@ -519,8 +465,8 @@ export function InterceptorConfigPage() {
         <h2>Mods ({mods.length})</h2>
         {mods.length ? <div>{mods.map((mod, index) => <article key={mod.id || index}><span><small>Mod Identifier</small><strong>{mod.id}</strong></span><span><small>MD5</small><strong>{mod.md5}</strong></span></article>)}</div> : <p>No modifications detected.</p>}
       </section>
-      {serverChangerOpen ? <ServerChangerModal sessionId={id} debugPreview={debugPreview} onClose={() => setServerChangerOpen(false)} /> : null}
-      {roleChangerOpen ? <RoleChangerModal sessionId={id} details={details} debugPreview={debugPreview} onClose={() => setRoleChangerOpen(false)} /> : null}
+      {serverChangerOpen ? <ServerChangerModal sessionId={id} onClose={() => setServerChangerOpen(false)} /> : null}
+      {roleChangerOpen ? <RoleChangerModal sessionId={id} details={details} onClose={() => setRoleChangerOpen(false)} /> : null}
     </>
   );
 }

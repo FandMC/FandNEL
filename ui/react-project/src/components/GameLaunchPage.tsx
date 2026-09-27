@@ -9,7 +9,6 @@ import type { GatewayMessage } from "../types";
 type Account = string | Record<string, unknown>;
 type LaunchKind = "netserver" | "realms" | "realm";
 
-const debugAccount = { id: "debug-account", username: "Debug Account" };
 
 function parsePayload(payload: unknown): unknown {
   if (typeof payload !== "string") return payload;
@@ -281,7 +280,6 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
   const name = searchParams.get("name") ?? "Game Server";
   const realms = kind === "realms";
   const domainRealm = kind === "realm";
-  const debugPreview = import.meta.env.DEV && (searchParams.get("debug") === "1" || id.startsWith("debug-"));
   const userId = selectedAccount ? accountId(selectedAccount) : "";
 
   const showError = useCallback((error: unknown, fallback: string) => {
@@ -290,11 +288,11 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
 
   useEffect(() => {
     handledMessageRef.current = messages.at(-1) ?? null;
-    accountsRef.current = debugPreview ? [debugAccount] : [];
+    accountsRef.current = [];
     setAccounts(accountsRef.current);
-    setSelectedAccount(debugPreview ? debugAccount : null);
-    setNickname(debugPreview ? "Steve" : "");
-    setAddress(debugPreview ? { host: "127.0.0.1", port: 19132 } : { host: "", port: 0 });
+    setSelectedAccount(null);
+    setNickname("");
+    setAddress({ host: "", port: 0 });
     setSkinBytes([]);
     setLaunching(false);
     setJoining(false);
@@ -302,7 +300,7 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
     setPasswordPromptOpen(false);
     setPasswordError("");
     addressUserIdRef.current = "";
-  }, [debugPreview, id, realms]);
+  }, [id, realms]);
 
   useEffect(() => {
     if (status !== "connected") return;
