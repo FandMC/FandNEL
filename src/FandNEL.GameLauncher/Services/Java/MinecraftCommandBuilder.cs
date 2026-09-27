@@ -81,28 +81,6 @@ internal static class MinecraftCommandBuilder
         }
         else
         {
-            var jars = new List<string>();
-            if (root.TryGetProperty("libraries", out var libraries))
-            {
-                foreach (var library in libraries.EnumerateArray())
-                {
-                    if (!IsAllowed(library))
-                        continue;
-                    string? relative = null;
-                    if (library.TryGetProperty("downloads", out var downloads) && downloads.TryGetProperty("artifact", out var artifact) && artifact.TryGetProperty("path", out var path))
-                        relative = path.GetString();
-                    else if (library.TryGetProperty("name", out var name))
-                    {
-                        var parts = name.GetString()!.Split(':');
-                        if (parts.Length >= 3 && !parts[1].Contains("platform", StringComparison.Ordinal))
-                            relative = $"{parts[0].Replace('.', '/')}/{parts[1]}/{parts[2]}/{parts[1]}-{parts[2]}{(parts.Length > 3 ? "-" + parts[3] : string.Empty)}.jar";
-                    }
-                    if (relative is not null)
-                        jars.Add(LauncherPaths.Child(Path.Combine(paths.Minecraft, "libraries"), relative));
-                }
-            }
-            jars.Add(Path.Combine(versionRoot, version + ".jar"));
-            placeholders["${classpath}"] = string.Join(Path.PathSeparator, jars);
             if (root.TryGetProperty("arguments", out var modern))
             {
                 if (modern.TryGetProperty("jvm", out var modernJvm))

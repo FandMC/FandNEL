@@ -137,7 +137,7 @@ internal sealed class MinecraftCompressionEncoder(int threshold) : MessageToByte
     protected override void Encode(IChannelHandlerContext context, IByteBuffer message, IByteBuffer output)
     {
         var length = message.ReadableBytes;
-        WriteVarInt(output, length >= Threshold ? length : 0);
+        MinecraftFrameEncoder.WriteVarInt(output, length >= Threshold ? length : 0);
         if (length < Threshold)
         {
             output.WriteBytes(message, message.ReaderIndex, length);
@@ -151,16 +151,6 @@ internal sealed class MinecraftCompressionEncoder(int threshold) : MessageToByte
             deflater.Write(bytes);
         }
         output.WriteBytes(target.ToArray());
-    }
-
-    private static void WriteVarInt(IByteBuffer output, int value)
-    {
-        while ((value & ~0x7f) != 0)
-        {
-            output.WriteByte((byte)((value & 0x7f) | 0x80));
-            value >>>= 7;
-        }
-        output.WriteByte((byte)value);
     }
 }
 

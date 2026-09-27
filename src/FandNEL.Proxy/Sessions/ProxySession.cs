@@ -134,20 +134,14 @@ public sealed class ProxySession : IProxySession
         lock (_stateLock)
         {
             if (_state != ProxySessionState.Running)
-            {
-                _ = channel.CloseAsync();
-                return;
-            }
+            { _ = channel.CloseAsync(); return; }
 
             connection = new MinecraftConnection(channel, _workerGroup, _initialOptions, _target, _role,
                 _registry ?? throw new InvalidOperationException("协议注册表尚未初始化。"),
                 username => Publish(ProxyEventKind.JoinServer, $"{username} 已进入服务器。"),
                 exception => Publish(ProxyEventKind.ConnectionFailed, exception.Message));
             if (!_connections.TryAdd(channel.Id, connection))
-            {
-                _ = channel.CloseAsync();
-                return;
-            }
+            { _ = channel.CloseAsync(); return; }
             Interlocked.Increment(ref _activeConnections);
         }
 

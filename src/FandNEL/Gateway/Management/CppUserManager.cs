@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.IO;
-using System.Linq;
 using FandNEL.Core.Entities.G79;
 using FandNEL.Gateway;
 using Serilog;
@@ -47,14 +46,8 @@ public sealed class CppUserManager
         lock (_usersLock)
             return _users.Select(user => new ManagedUser
             {
-                UserId = user.UserId,
-                Authorized = user.Authorized,
-                AutoLogin = false,
-                Channel = user.Channel,
-                Type = user.Type,
-                Details = string.Empty,
-                Platform = GatewayPlatform.Mobile,
-                Alias = user.Alias
+                UserId = user.UserId, Authorized = user.Authorized, AutoLogin = false, Channel = user.Channel,
+                Type = user.Type, Details = string.Empty, Platform = GatewayPlatform.Mobile, Alias = user.Alias
             }).ToArray();
     }
 
@@ -93,11 +86,8 @@ public sealed class CppUserManager
             if (existing is null) _users.Add(user);
             else
             {
-                existing.Authorized = true;
-                existing.Channel = user.Channel;
-                existing.Type = user.Type;
-                existing.Details = user.Details;
-                existing.Alias = user.Alias;
+                existing.Authorized = true; existing.Channel = user.Channel; existing.Type = user.Type;
+                existing.Details = user.Details; existing.Alias = user.Alias;
             }
             if (saveToDisk) SaveUsersToDiskUnsafe();
         }
@@ -105,10 +95,7 @@ public sealed class CppUserManager
 
     public void RemoveUser(string userId)
     {
-        lock (_usersLock)
-        {
-            if (_users.RemoveAll(user => user.UserId == userId) > 0) SaveUsersToDiskUnsafe();
-        }
+        lock (_usersLock) { if (_users.RemoveAll(user => user.UserId == userId) > 0) SaveUsersToDiskUnsafe(); }
         lock (_availableLock) _availableUsers.RemoveAll(user => user.UserId == userId);
     }
 
@@ -118,11 +105,7 @@ public sealed class CppUserManager
         lock (_usersLock)
         {
             var user = _users.LastOrDefault(candidate => candidate.UserId == userId);
-            if (user is not null)
-            {
-                user.Authorized = false;
-                SaveUsersToDiskUnsafe();
-            }
+            if (user is not null) { user.Authorized = false; SaveUsersToDiskUnsafe(); }
         }
     }
 
@@ -138,11 +121,7 @@ public sealed class CppUserManager
                     .Select(group => group.Last()).ToList();
                 foreach (var user in _users) user.Authorized = false;
             }
-            catch (Exception exception)
-            {
-                Log.Error(exception, "Failed to read Bedrock users from disk");
-                _users = [];
-            }
+            catch (Exception exception) { Log.Error(exception, "Failed to read Bedrock users from disk"); _users = []; }
         }
     }
 
@@ -154,10 +133,6 @@ public sealed class CppUserManager
     private void SaveUsersToDiskUnsafe()
     {
         try { File.WriteAllText(_usersFilePath, JsonSerializer.Serialize(_users, JsonOptions)); }
-        catch (Exception exception)
-        {
-            Log.Error(exception, "Failed to save Bedrock users to disk");
-            throw;
-        }
+        catch (Exception exception) { Log.Error(exception, "Failed to save Bedrock users to disk"); throw; }
     }
 }

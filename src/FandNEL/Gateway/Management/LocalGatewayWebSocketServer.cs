@@ -25,10 +25,7 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
     private const int RentalVersionId = 1169603340;
     private static readonly byte[] Salt = "codexus.today.websocket.establishing"u8.ToArray();
     private static readonly byte[] Info = "codexus.today.aes.key"u8.ToArray();
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 
     private readonly GatewayRuntime _runtime;
     private readonly string _webRoot;
@@ -60,17 +57,8 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
         {
             var listener = new HttpListener();
             listener.Prefixes.Add($"http://localhost:{port}/");
-            try
-            {
-                listener.Start();
-                _listener = listener;
-                _port = port;
-                break;
-            }
-            catch (HttpListenerException)
-            {
-                listener.Close();
-            }
+            try { listener.Start(); _listener = listener; _port = port; break; }
+            catch (HttpListenerException) { listener.Close(); }
         }
 
         if (_listener is null)
@@ -118,12 +106,7 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
             var file = candidate.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(candidate)
                 ? candidate
                 : Path.Combine(_webRoot, "index.html");
-            if (!File.Exists(file))
-            {
-                context.Response.StatusCode = 404;
-                context.Response.Close();
-                return;
-            }
+            if (!File.Exists(file)) { context.Response.StatusCode = 404; context.Response.Close(); return; }
 
             var bytes = await File.ReadAllBytesAsync(file, cancellationToken).ConfigureAwait(false);
             context.Response.ContentType = GetContentType(Path.GetExtension(file));
@@ -213,9 +196,7 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
             try { await DispatchAsync(socket, message, identify, sessionKey, cancellationToken).ConfigureAwait(false); }
             catch (BedrockAccountNotActivatedException exception)
             {
-                await SendAsync(socket, message.Type,
-                    JsonSerializer.Serialize(new { code = 1001, message = exception.Message, payload = string.Empty }, JsonOptions),
-                    identify, sessionKey, cancellationToken).ConfigureAwait(false);
+                await SendAsync(socket, message.Type, ErrorPayload(exception.Message), identify, sessionKey, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception)
             {
@@ -246,7 +227,7 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
                 }
                 else
                 {
-                    await SendAsync(socket, message.Type, JsonSerializer.Serialize(new { code = 1001, message = exception.Message, payload = string.Empty }, JsonOptions), identify, sessionKey, cancellationToken).ConfigureAwait(false);
+                    await SendAsync(socket, message.Type, ErrorPayload(exception.Message), identify, sessionKey, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -312,7 +293,7 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
                 await CancelGameSessionAsync(socket, message.Payload, identify, key, cancellationToken).ConfigureAwait(false);
                 break;
             default:
-                await SendAsync(socket, message.Type, JsonSerializer.Serialize(new { code = 1001, message = $"FandNEL 尚未实现消息：{message.Type}", payload = string.Empty }, JsonOptions), identify, key, cancellationToken).ConfigureAwait(false);
+                await SendAsync(socket, message.Type, ErrorPayload($"FandNEL 尚未实现消息：{message.Type}"), identify, key, cancellationToken).ConfigureAwait(false);
                 break;
         }
     }
@@ -491,7 +472,7 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
             ?? throw new InvalidOperationException("无效的登录请求。");
         if (string.Equals(request.Channel, "send_code", StringComparison.OrdinalIgnoreCase))
         {
-            await SendAsync(socket, "login", JsonSerializer.Serialize(new { code = 1001, message = "短信登录需要通过桌面认证流程完成。", payload = string.Empty }, JsonOptions), identify, key, cancellationToken).ConfigureAwait(false);
+            await SendAsync(socket, "login", ErrorPayload("短信登录需要通过桌面认证流程完成。"), identify, key, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -529,17 +510,15 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
                 Platform = GatewayPlatform.Mobile,
                 Alias = authentication.EntityId
             });
-            await SendAsync(socket, "login/success", authentication.EntityId, identify, key, cancellationToken).ConfigureAwait(false);
+            await SendLoginCompletedAsync(socket, authentication.EntityId, identify, key, cancellationToken).ConfigureAwait(false);
         }
         else
         {
             var session = await _runtime.Accounts.LoginAsync(
                 new LoginRequest(channel, account, password, GatewayPlatform.Desktop),
                 new NoopChallengeHandler(), cancellationToken).ConfigureAwait(false);
-            await SendAsync(socket, "login/success", session.UserId, identify, key, cancellationToken).ConfigureAwait(false);
+            await SendLoginCompletedAsync(socket, session.UserId, identify, key, cancellationToken).ConfigureAwait(false);
         }
-        await SendAsync(socket, "login", JsonSerializer.Serialize(new { code = 0, message = "Success", payload = string.Empty }, JsonOptions), identify, key, cancellationToken).ConfigureAwait(false);
-        await SendAsync(socket, "get_accounts", SerializeAccounts(string.Empty), identify, key, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task ActivateSavedAccountAsync(WebSocket socket, LoginWireRequest request, string? identify, byte[] key,
@@ -643,6 +622,8 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
         return await Task.Run(() => _g79.Value.AuthenticationOtp(cookie, request.Token ?? string.Empty), cancellationToken).ConfigureAwait(false);
     }
 
+    private static string ErrorPayload(string message) => JsonSerializer.Serialize(new { code = 1001, message, payload = string.Empty }, JsonOptions);
+
     private static async Task SendAsync(WebSocket socket, string type, string payload, string? identify, byte[]? key, CancellationToken cancellationToken)
     {
         var message = JsonSerializer.Serialize(new GatewayWireMessage(type, payload, Sha256(payload), identify), JsonOptions);
@@ -730,13 +711,10 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
         [property: JsonPropertyName("identify")] string? Identify);
 
     private sealed record AvailableAccount(
-        [property: JsonPropertyName("id")] string Id,
-        [property: JsonPropertyName("alias")] string Alias);
+        [property: JsonPropertyName("id")] string Id, [property: JsonPropertyName("alias")] string Alias);
 
     private sealed record AliasRequest(
-        [property: JsonPropertyName("id")] string Id,
-        [property: JsonPropertyName("platform")] int Platform,
-        [property: JsonPropertyName("alias")] string? Alias);
+        [property: JsonPropertyName("id")] string Id, [property: JsonPropertyName("platform")] int Platform, [property: JsonPropertyName("alias")] string? Alias);
 
     private sealed record LoginWireRequest(
         [property: JsonPropertyName("channel")] string Channel,
@@ -746,8 +724,7 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
         [property: JsonPropertyName("token")] string? Token);
 
     private sealed record PasswordWireRequest(
-        [property: JsonPropertyName("account")] string Account,
-        [property: JsonPropertyName("password")] string Password);
+        [property: JsonPropertyName("account")] string Account, [property: JsonPropertyName("password")] string Password);
 
     private sealed record JoinGameWireRequest(
         [property: JsonPropertyName("id")] string UserId,
@@ -779,9 +756,7 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
         [property: JsonPropertyName("port")] int Port);
 
     private sealed record SwitchRoleWireRequest(
-        [property: JsonPropertyName("id")] string Id,
-        [property: JsonPropertyName("user_id")] string UserId,
-        [property: JsonPropertyName("role")] string Role);
+        [property: JsonPropertyName("id")] string Id, [property: JsonPropertyName("user_id")] string UserId, [property: JsonPropertyName("role")] string Role);
 
     private sealed class NoopChallengeHandler : ILoginChallengeHandler
     {

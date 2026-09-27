@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.IO;
-using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using FandNEL.Core.Entities.WPFLauncher;
@@ -13,11 +12,7 @@ namespace FandNEL.Gateway.Management;
 /// <summary>Java 版账号仓库及已激活会话管理，按 Gateway 的 users.json 格式持久化。</summary>
 public sealed class UserManager : IAsyncDisposable
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        WriteIndented = true
-    };
+    private static readonly JsonSerializerOptions JsonOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, WriteIndented = true };
 
     private static readonly TimeSpan RefreshAfter = TimeSpan.FromMinutes(20);
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(2);
@@ -61,14 +56,8 @@ public sealed class UserManager : IAsyncDisposable
 
     public IReadOnlyList<ManagedUser> GetUsersNoDetails() => _users.Values.Select(user => new ManagedUser
     {
-        UserId = user.UserId,
-        Authorized = user.Authorized,
-        AutoLogin = false,
-        Channel = user.Channel,
-        Type = user.Type,
-        Details = string.Empty,
-        Platform = user.Platform,
-        Alias = user.Alias
+        UserId = user.UserId, Authorized = user.Authorized, AutoLogin = false, Channel = user.Channel,
+        Type = user.Type, Details = string.Empty, Platform = user.Platform, Alias = user.Alias
     }).ToArray();
 
     public ManagedUser? GetUserById(string userId) =>
@@ -80,11 +69,8 @@ public sealed class UserManager : IAsyncDisposable
         user.Platform = GatewayPlatform.Desktop;
         _users.AddOrUpdate(user.UserId, user, (_, existing) =>
         {
-            existing.Authorized = true;
-            existing.Channel = user.Channel;
-            existing.Type = user.Type;
-            existing.Details = user.Details;
-            existing.Alias = user.Alias;
+            existing.Authorized = true; existing.Channel = user.Channel; existing.Type = user.Type;
+            existing.Details = user.Details; existing.Alias = user.Alias;
             return existing;
         });
         if (saveToDisk) MarkDirtyAndScheduleSave();

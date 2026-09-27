@@ -160,10 +160,7 @@ public sealed class MinecraftConnection
 
     internal void EnableServerCompression(int threshold) => ConfigureCompression(ServerChannel, threshold);
 
-    internal void EnableClientCompression(int threshold)
-    {
-        ConfigureCompression(_client, threshold);
-    }
+    internal void EnableClientCompression(int threshold) => ConfigureCompression(_client, threshold);
 
     internal IChannel GetDestination(PacketDirection direction) =>
         direction == PacketDirection.ServerBound
@@ -217,19 +214,15 @@ public sealed class MinecraftConnection
             else
                 response.WriteByteArray(encryptedSecret).WriteByteArray(encryptedToken);
             var channel = ServerChannel ?? throw new IOException("服务端连接已经关闭。");
-            await channel.WriteAndFlushAsync(CreateBuffer(channel, response.ToArray())).ConfigureAwait(false);
+            var loginResponse = response.ToArray();
+            var responseBuffer = channel.Allocator.Buffer(loginResponse.Length);
+            responseBuffer.WriteBytes(loginResponse);
+            await channel.WriteAndFlushAsync(responseBuffer).ConfigureAwait(false);
             channel.Pipeline.AddBefore("frame-decoder", "decrypt", new MinecraftEncryptionDecoder(secret));
             // 与参考实现一致：加密插在分帧编码器之前，出站逆序为压缩 -> 分帧 -> 加密。
             channel.Pipeline.AddBefore("frame-encoder", "encrypt", new MinecraftEncryptionEncoder(secret));
         }
         finally { CryptographicOperations.ZeroMemory(secret); }
-    }
-
-    private static IByteBuffer CreateBuffer(IChannel channel, byte[] bytes)
-    {
-        var buffer = channel.Allocator.Buffer(bytes.Length);
-        buffer.WriteBytes(bytes);
-        return buffer;
     }
 
     internal void NotifyJoined(string username) => _onJoined(username);
@@ -282,7 +275,6 @@ public sealed class MinecraftConnection
         _ => 0
     };
 
-
     private static string GetClientErrorMessage(Exception exception)
     {
         var message = exception is HttpRequestException http && !string.IsNullOrWhiteSpace(http.Message)
@@ -299,11 +291,7 @@ internal abstract class MinecraftPacketHandler(MinecraftConnection connection, P
 
     public override void ChannelRead(IChannelHandlerContext context, object message)
     {
-        if (message is not IByteBuffer buffer)
-        {
-            context.FireChannelRead(message);
-            return;
-        }
+        if (message is not IByteBuffer buffer) { context.FireChannelRead(message); return; }
         try
         {
             var bytes = new byte[buffer.ReadableBytes];
@@ -377,11 +365,7 @@ internal sealed class Socks5ClientHandler(MinecraftConnection connection, Server
 
     public override void ChannelRead(IChannelHandlerContext context, object message)
     {
-        if (message is not IByteBuffer buffer)
-        {
-            context.FireChannelRead(message);
-            return;
-        }
+        if (message is not IByteBuffer buffer) { context.FireChannelRead(message); return; }
         try
         {
             var data = new byte[buffer.ReadableBytes]; buffer.GetBytes(buffer.ReaderIndex, data); _pending.AddRange(data);

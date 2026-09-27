@@ -68,8 +68,7 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
 
     private object GetNetGames(string? payload)
     {
-        var request = ReadObject(payload);
-        var user = JavaUser(StringValue(request, UserIdKeys));
+        var user = JavaUserFromPayload(payload, out var request);
         var result = runtime.Accounts.Service.Launcher.GetAvailableNetGames(
             user.UserId, user.AccessToken, IntValue(request, 0, "offset"), IntValue(request, 20, "length"));
         EnsureSuccess(result, "获取网络服务器列表失败");
@@ -88,8 +87,7 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
 
     private object GetRentalGames(string? payload)
     {
-        var request = ReadObject(payload);
-        var user = JavaUser(StringValue(request, UserIdKeys));
+        var user = JavaUserFromPayload(payload, out var request);
         var result = runtime.Accounts.Service.Launcher.GetRentalGameList(
             user.UserId, user.AccessToken, IntValue(request, 0, "offset"));
         EnsureSuccess(result, "获取租赁服务器列表失败");
@@ -138,8 +136,7 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
 
     private object GetRoles(string? payload)
     {
-        var request = ReadObject(payload);
-        var user = JavaUser(StringValue(request, UserIdKeys));
+        var user = JavaUserFromPayload(payload, out var request);
         var gameId = ResolveGameId(request, "游戏 ID");
         var kind = StringValue(request, GameTypeKeys);
         object roles = kind switch
@@ -155,8 +152,7 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
 
     private object CreateRole(string? payload)
     {
-        var request = ReadObject(payload);
-        var user = JavaUser(StringValue(request, UserIdKeys));
+        var user = JavaUserFromPayload(payload, out var request);
         var gameId = ResolveGameId(request, "游戏 ID");
         var name = RequiredString(request, "角色名", RoleNameKeys);
         switch (StringValue(request, GameTypeKeys))
@@ -257,8 +253,7 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
 
     private object GetSkinList(string? payload)
     {
-        var request = ReadObject(payload);
-        var user = JavaUser(StringValue(request, UserIdKeys));
+        var user = JavaUserFromPayload(payload, out var request);
         var launcher = runtime.Accounts.Service.Launcher;
         var available = launcher.GetFreeSkinList(user.UserId, user.AccessToken,
             IntValue(request, 0, "offset"), IntValue(request, 20, "length"));
@@ -273,8 +268,7 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
 
     private object GetSkinDetails(string? payload)
     {
-        var request = ReadObject(payload);
-        var user = JavaUser(StringValue(request, UserIdKeys));
+        var user = JavaUserFromPayload(payload, out var request);
         var itemId = RequiredString(request, "皮肤 ID", ["item_id", "entity_id"]);
         var details = runtime.Accounts.Service.Launcher.GetSkinDetails(user.UserId, user.AccessToken,
             new Entities<EntitySkin> { Data = [new EntitySkin { EntityId = itemId }] });
@@ -285,8 +279,7 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
 
     private object PurchaseSkin(string? payload)
     {
-        var request = ReadObject(payload);
-        var user = JavaUser(StringValue(request, UserIdKeys));
+        var user = JavaUserFromPayload(payload, out var request);
         var itemId = RequiredString(request, "皮肤 ID", ["item_id", "entity_id"]);
         var result = runtime.Accounts.Service.Launcher.PurchaseSkin(user.UserId, user.AccessToken, itemId);
         EnsureSuccess(result, "购买皮肤失败");
@@ -295,8 +288,7 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
 
     private object BuySkinResult(string? payload)
     {
-        var request = ReadObject(payload);
-        var user = JavaUser(StringValue(request, UserIdKeys));
+        var user = JavaUserFromPayload(payload, out var request);
         var orderId = RequiredString(request, "订单 ID", ["orderid", "order_id"]);
         return ParseAndValidateRaw(runtime.Accounts.Service.Launcher.BuyItemResult(
             user.UserId, user.AccessToken, orderId, IntValue(request, 0, "buy_type")), "查询皮肤购买结果失败");
@@ -304,10 +296,15 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
 
     private object ApplySkin(string? payload)
     {
-        var request = ReadObject(payload);
-        var user = JavaUser(StringValue(request, UserIdKeys));
+        var user = JavaUserFromPayload(payload, out var request);
         var itemId = RequiredString(request, "皮肤 ID", ["item_id", "entity_id"]);
         return runtime.Accounts.Service.Launcher.SetSkin(user.UserId, user.AccessToken, itemId);
+    }
+
+    private ManagedAvailableUser JavaUserFromPayload(string? payload, out JsonElement request)
+    {
+        request = ReadObject(payload);
+        return JavaUser(StringValue(request, UserIdKeys));
     }
 
     private ManagedAvailableUser JavaUser(string? userId = null)
@@ -396,9 +393,7 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
         try
         {
             using var document = JsonDocument.Parse(payload);
-            return document.RootElement.ValueKind == JsonValueKind.String
-                ? document.RootElement.GetString() ?? string.Empty
-                : payload;
+            return document.RootElement.ValueKind == JsonValueKind.String ? document.RootElement.GetString() ?? string.Empty : payload;
         }
         catch (JsonException) { return payload; }
     }
@@ -466,5 +461,4 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
         if (gameId.Length == 0) throw new ArgumentException("游戏 ID 不能为空。");
         return (gameId, parts.Length == 2 ? parts[1] : null);
     }
-
 }

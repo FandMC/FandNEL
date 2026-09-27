@@ -1,4 +1,3 @@
-using System.Net.Http;
 using System.Security.Cryptography;
 using FandNEL.GameLauncher.Models;
 

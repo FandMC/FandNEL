@@ -72,15 +72,7 @@ internal sealed class MinecraftInstaller(WPFLauncher launcher, LauncherPaths pat
             }
             // 认证清单使用平台下发的逻辑 ID，不使用本地重命名后的文件名。
             foreach (var sub in component.SubEntities)
-                mods.Mods.Add(new EntityModsInfo
-                {
-                    ModPath = $"{component.ItemId}@{component.MTypeId}@0.jar",
-                    Id = $"{component.ItemId}@{component.MTypeId}@0.jar",
-                    Iid = component.ItemId,
-                    Md5 = sub.JarMd5.ToUpperInvariant(),
-                    Name = string.Empty,
-                    Version = string.Empty
-                });
+                mods.Mods.Add(Mod($"{component.ItemId}@{component.MTypeId}@0.jar", component.ItemId, sub.JarMd5.ToUpperInvariant()));
         }
 
         var assets = await launcher.GetNetGameComponentDownloadListAsync(request.UserId, request.UserToken, request.GameId).ConfigureAwait(false);
@@ -101,15 +93,7 @@ internal sealed class MinecraftInstaller(WPFLauncher launcher, LauncherPaths pat
             {
                 await using var input = File.OpenRead(jar);
                 var name = Path.GetFileName(jar);
-                mods.Mods.Add(new EntityModsInfo
-                {
-                    ModPath = name,
-                    Id = name,
-                    Iid = name.Split('@')[0],
-                    Md5 = Convert.ToHexString(await MD5.HashDataAsync(input, cancellationToken).ConfigureAwait(false)),
-                    Name = string.Empty,
-                    Version = string.Empty
-                });
+                mods.Mods.Add(Mod(name, name.Split('@')[0], Convert.ToHexString(await MD5.HashDataAsync(input, cancellationToken).ConfigureAwait(false))));
             }
         }
         return mods;
@@ -162,6 +146,9 @@ internal sealed class MinecraftInstaller(WPFLauncher launcher, LauncherPaths pat
     }
 
     internal static string VersionName(EnumGameVersion version) => version.ToString()[2..].Replace('_', '.');
+
+    private static EntityModsInfo Mod(string path, string iid, string md5) =>
+        new() { ModPath = path, Id = path, Iid = iid, Md5 = md5, Name = string.Empty, Version = string.Empty };
 
     private static void CopyFile(string source, string destination)
     {

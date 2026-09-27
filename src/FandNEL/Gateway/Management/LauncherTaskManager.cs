@@ -37,8 +37,7 @@ public sealed class LauncherTaskManager : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(handle);
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         var entry = new Entry(Guid.NewGuid(), handle, request, initialProgress);
-        if (!_tasks.TryAdd(entry.Id, entry))
-            throw new InvalidOperationException("无法注册游戏启动任务。");
+        if (!_tasks.TryAdd(entry.Id, entry)) throw new InvalidOperationException("无法注册游戏启动任务。");
         _events?.Publish(GatewayEventKind.LauncherStarted, entry.Id.ToString());
         _ = ObserveExitAsync(entry);
         return entry.Id;
@@ -46,12 +45,7 @@ public sealed class LauncherTaskManager : IAsyncDisposable
 
     public bool TryGet(Guid id, out LauncherTaskSnapshot? snapshot)
     {
-        if (_tasks.TryGetValue(id, out var entry))
-        {
-            snapshot = entry.Snapshot;
-            return true;
-        }
-
+        if (_tasks.TryGetValue(id, out var entry)) { snapshot = entry.Snapshot; return true; }
         snapshot = null;
         return false;
     }
@@ -59,8 +53,7 @@ public sealed class LauncherTaskManager : IAsyncDisposable
     public bool UpdateProgress(Guid id, LaunchProgress progress)
     {
         ArgumentNullException.ThrowIfNull(progress);
-        if (!_tasks.TryGetValue(id, out var entry))
-            return false;
+        if (!_tasks.TryGetValue(id, out var entry)) return false;
         entry.SetProgress(progress);
         _events?.Publish(GatewayEventKind.LauncherProgress, id.ToString(), progress.Message);
         return true;
@@ -68,8 +61,7 @@ public sealed class LauncherTaskManager : IAsyncDisposable
 
     public async Task<bool> StopAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        if (!_tasks.TryGetValue(id, out var entry))
-            return false;
+        if (!_tasks.TryGetValue(id, out var entry)) return false;
         await entry.Handle.StopAsync(cancellationToken).ConfigureAwait(false);
         return true;
     }
@@ -82,8 +74,7 @@ public sealed class LauncherTaskManager : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposed, 1) != 0)
-            return;
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         await StopAllAsync().ConfigureAwait(false);
         _tasks.Clear();
     }
@@ -144,11 +135,9 @@ public sealed class LauncherTaskManager : IAsyncDisposable
             get
             {
                 lock (_lock)
-                {
                     return new LauncherTaskSnapshot(
                         Id, GameId, GameVersion, Handle.ProcessId, Handle.HasExited,
                         StartedAt, _stage, _message, _progressPercent);
-                }
             }
         }
 

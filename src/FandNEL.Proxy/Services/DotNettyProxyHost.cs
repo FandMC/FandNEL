@@ -1,7 +1,5 @@
 using System.Collections.Concurrent;
 using DotNetty.Transport.Channels;
-using DotNetty.Transport.Channels.Sockets;
-using DotNetty.Transport.Bootstrapping;
 using FandNEL.Proxy.Models;
 using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Sessions;

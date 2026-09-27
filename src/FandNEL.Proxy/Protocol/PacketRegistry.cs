@@ -38,8 +38,7 @@ public sealed class PacketRegistry
         IEnumerable<ProtocolVersion>? versions = null, int priority = 0)
     {
         ArgumentNullException.ThrowIfNull(handler);
-        if (packetId < 0)
-            throw new ArgumentOutOfRangeException(nameof(packetId));
+        if (packetId < 0) throw new ArgumentOutOfRangeException(nameof(packetId));
         var entry = new Entry(state, direction, packetId, versions?.ToHashSet(), priority,
             Interlocked.Increment(ref _sequence), handler);
         lock (_gate)
@@ -69,8 +68,7 @@ public sealed class PacketRegistry
         }
         catch
         {
-            foreach (var registration in registrations)
-                registration.Dispose();
+            foreach (var registration in registrations) registration.Dispose();
             throw;
         }
     }

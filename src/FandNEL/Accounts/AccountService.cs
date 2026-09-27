@@ -60,11 +60,8 @@ public sealed class AccountService : IAccountService, IAsyncDisposable
             var accounts = (await LoadAsync(cancellationToken).ConfigureAwait(false)).ToList();
             string alias = accounts.Find(a => a.Id == session.UserId)?.Alias ?? session.DisplayName;
             accounts.RemoveAll(a => a.Id == session.UserId);
-            accounts.Add(new GatewayAccount
-            {
-                Id = session.UserId, Channel = session.Channel, Type = "cookie", Details = session.Cookie,
-                Alias = alias, Authorized = true, Platform = request.Platform
-            });
+            accounts.Add(new GatewayAccount { Id = session.UserId, Channel = session.Channel, Type = "cookie", Details = session.Cookie,
+                Alias = alias, Authorized = true, Platform = request.Platform });
             await _store.WriteAsync(accounts, cancellationToken).ConfigureAwait(false);
             _accounts = accounts;
             SaveSession(session);
@@ -115,9 +112,7 @@ public sealed class AccountService : IAccountService, IAsyncDisposable
     {
         await MutateAsync(accounts =>
         {
-            accounts.RemoveAll(a => a.Id == userId);
-            _sessions.Remove(userId);
-            _updated.Remove(userId);
+            accounts.RemoveAll(a => a.Id == userId); _sessions.Remove(userId); _updated.Remove(userId);
         }, cancellationToken).ConfigureAwait(false);
     }
 
@@ -149,5 +144,4 @@ public sealed class AccountService : IAccountService, IAsyncDisposable
         _sessions.Clear();
         _gate.Dispose();
     }
-
 }

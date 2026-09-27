@@ -51,14 +51,8 @@ public sealed class AccountManager : IAccountManager, IAccountService
         _tokens.UpdateToken(activated.UserId, activated.Token);
         _javaUsers.AddUser(new ManagedUser
         {
-            UserId = session.UserId,
-            Authorized = true,
-            AutoLogin = false,
-            Channel = session.Channel,
-            Type = session.Type,
-            Details = session.Details,
-            Platform = GatewayPlatform.Desktop,
-            Alias = session.Nickname
+            UserId = session.UserId, Authorized = true, AutoLogin = false, Channel = session.Channel,
+            Type = session.Type, Details = session.Details, Platform = GatewayPlatform.Desktop, Alias = session.Nickname
         });
         _javaUsers.AddUserToMaintain(activated.UserId, activated.Token);
         _events?.Publish(GatewayEventKind.AccountAdded, session.UserId, "账号已登录并激活。");

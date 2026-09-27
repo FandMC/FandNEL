@@ -81,8 +81,7 @@ internal sealed class LanDiscoveryBroadcaster : IAsyncDisposable
             {
             }
         }
-        if (clients.Count == 0)
-            clients.Add(new UdpClient(AddressFamily.InterNetwork));
+        if (clients.Count == 0) clients.Add(new UdpClient(AddressFamily.InterNetwork));
         return clients;
     }
 }

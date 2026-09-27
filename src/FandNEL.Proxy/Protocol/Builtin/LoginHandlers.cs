@@ -10,26 +10,23 @@ public sealed class LoginStartHandler : IPacketHandler
         using var writer = new PacketWriter();
         writer.WriteString(context.Connection.Role.Name, 16);
         if (context.Version >= ProtocolVersion.V1206)
-        {
-            var uuid = reader.ReadBytes(16);
-            if (Guid.TryParse(context.Connection.Role.Id, out var roleUuid))
-                uuid = roleUuid.ToByteArray(bigEndian: true);
-            writer.WriteBytes(uuid);
-        }
+            WriteResolvedUuid(writer, reader, context.Connection.Role.Id);
         else if (context.Version == ProtocolVersion.V1200)
         {
             var hasUuid = reader.ReadBoolean();
             writer.WriteBoolean(hasUuid);
             if (hasUuid)
-            {
-                var uuid = reader.ReadBytes(16);
-                if (Guid.TryParse(context.Connection.Role.Id, out var roleUuid))
-                    uuid = roleUuid.ToByteArray(bigEndian: true);
-                writer.WriteBytes(uuid);
-            }
+                WriteResolvedUuid(writer, reader, context.Connection.Role.Id);
         }
         context.ReplaceRange(0, reader.Position, writer.ToArray());
         return ValueTask.CompletedTask;
+    }
+
+    private static void WriteResolvedUuid(PacketWriter writer, PacketReader reader, string? roleId)
+    {
+        var uuid = reader.ReadBytes(16);
+        if (Guid.TryParse(roleId, out var roleUuid)) uuid = roleUuid.ToByteArray(bigEndian: true);
+        writer.WriteBytes(uuid);
     }
 }
 
