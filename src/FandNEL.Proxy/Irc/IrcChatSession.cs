@@ -2,20 +2,19 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Serilog;
 
 namespace FandNEL.Proxy.Irc;
 
 /// <summary>聊天室消息。</summary>
-internal sealed record IrcMessage(long Id, string Sender, string Text, bool IsIrc, long Time);
+internal sealed record IrcMessage(long Id, string Sender, string Text, bool IsIrc);
 
 /// <summary>一次轮询的结果。</summary>
 internal sealed record IrcPollResult(
     bool Success,
-    string Message,
     IReadOnlyList<IrcMessage> Messages,
     int Online,
-    bool Disabled,
-    bool Unauthorized);
+    bool Disabled);
 
 /// <summary>一次发言的结果。</summary>
 internal sealed record IrcSendResult(bool Success, string Message);
@@ -31,8 +30,9 @@ internal sealed class IrcChatSession : IDisposable
     private readonly string _hwid;
     private string? _token;
     private long _lastId;
+    private string? _lastFailureKey;
 
-    internal IrcChatSession(IrcChatOptions options)
+    internal IrcChatSession(IrcChatOptions options, string hwid)
     {
         _options = options;
         var root = options.BaseUrl.Trim().TrimEnd('/');
@@ -41,12 +41,8 @@ internal sealed class IrcChatSession : IDisposable
             BaseAddress = new Uri(root + "/"),
             Timeout = TimeSpan.FromSeconds(15)
         };
-        _hwid = IrcHwid.Resolve(options.Hwid);
+        _hwid = hwid;
     }
-
-    internal string Username => _options.Username;
-
-    internal bool HasSession => _token is not null;
 
     /// <summary>确保已登录；失败返回 false，由调用方决定重试节奏。</summary>
     internal async Task<bool> EnsureLoginAsync(CancellationToken cancellationToken)
@@ -69,12 +65,14 @@ internal sealed class IrcChatSession : IDisposable
                 _token = token.GetString();
                 if (!string.IsNullOrWhiteSpace(_token))
                 {
-                    IrcLog.Write($"已登录聊天室（{_options.Username}）。");
+                    _lastFailureKey = null;
+                    Log.Information("IRC: logged in as {Username}", _options.Username);
                     return true;
                 }
             }
 
-            IrcLog.Write($"聊天室登录失败：{ReadMessage(json)}");
+            var reason = ReadMessage(json);
+            LogFailureOnce("login|" + reason, "IRC: login rejected: " + reason);
             return false;
         }
         catch (OperationCanceledException)
@@ -83,7 +81,7 @@ internal sealed class IrcChatSession : IDisposable
         }
         catch (Exception exception)
         {
-            IrcLog.Write("聊天室登录异常：" + exception.Message);
+            LogFailureOnce("login-ex|" + exception.Message, "IRC: login request failed", exception);
             return false;
         }
     }
@@ -94,7 +92,7 @@ internal sealed class IrcChatSession : IDisposable
         var token = _token;
         if (token is null)
         {
-            return new IrcPollResult(false, "尚未登录聊天室。", [], 0, false, false);
+            return new IrcPollResult(false, [], 0, false);
         }
 
         try
@@ -110,14 +108,17 @@ internal sealed class IrcChatSession : IDisposable
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 InvalidateLogin();
-                return new IrcPollResult(false, "登录已失效。", [], 0, false, true);
+                LogFailureOnce("poll|unauthorized", "IRC: poll rejected: session expired");
+                return new IrcPollResult(false, [], 0, false);
             }
 
             using var json = await ReadJsonAsync(response, cancellationToken).ConfigureAwait(false);
             var root = json.RootElement;
             if (!root.TryGetProperty("success", out var success) || success.ValueKind != JsonValueKind.True)
             {
-                return new IrcPollResult(false, ReadMessage(json), [], 0, false, false);
+                var reason = ReadMessage(json);
+                LogFailureOnce("poll|" + reason, "IRC: poll rejected: " + reason);
+                return new IrcPollResult(false, [], 0, false);
             }
 
             var messages = new List<IrcMessage>();
@@ -135,8 +136,7 @@ internal sealed class IrcChatSession : IDisposable
                     var sender = node.TryGetProperty("sender", out var senderProperty) ? senderProperty.GetString() ?? string.Empty : string.Empty;
                     var text = node.TryGetProperty("text", out var textProperty) ? textProperty.GetString() ?? string.Empty : string.Empty;
                     var isIrc = node.TryGetProperty("isIrc", out var ircProperty) && ircProperty.ValueKind == JsonValueKind.True;
-                    var time = node.TryGetProperty("time", out var timeProperty) && timeProperty.TryGetInt64(out var timeValue) ? timeValue : 0;
-                    messages.Add(new IrcMessage(id, sender, text, isIrc, time));
+                    messages.Add(new IrcMessage(id, sender, text, isIrc));
                     if (id > maximumId)
                     {
                         maximumId = id;
@@ -150,7 +150,8 @@ internal sealed class IrcChatSession : IDisposable
                 ? onlineValue
                 : 0;
             var disabled = root.TryGetProperty("disabled", out var disabledProperty) && disabledProperty.ValueKind == JsonValueKind.True;
-            return new IrcPollResult(true, string.Empty, messages, online, disabled, false);
+            _lastFailureKey = null;
+            return new IrcPollResult(true, messages, online, disabled);
         }
         catch (OperationCanceledException)
         {
@@ -158,8 +159,8 @@ internal sealed class IrcChatSession : IDisposable
         }
         catch (Exception exception)
         {
-            IrcLog.Write("聊天室轮询异常：" + exception.Message);
-            return new IrcPollResult(false, exception.Message, [], 0, false, false);
+            LogFailureOnce("poll-ex|" + exception.Message, "IRC: poll request failed", exception);
+            return new IrcPollResult(false, [], 0, false);
         }
     }
 
@@ -200,12 +201,32 @@ internal sealed class IrcChatSession : IDisposable
         }
         catch (Exception exception)
         {
-            IrcLog.Write("发送到聊天室异常：" + exception.Message);
+            Log.Warning(exception, "IRC: send request failed");
             return new IrcSendResult(false, exception.Message);
         }
     }
 
     internal void InvalidateLogin() => _token = null;
+
+    /// <summary>同一原因连续失败只告警一次，避免断网或凭据错误时刷日志。</summary>
+    private void LogFailureOnce(string key, string message, Exception? exception = null)
+    {
+        if (string.Equals(_lastFailureKey, key, StringComparison.Ordinal))
+        {
+            Log.Debug("{Message}", message);
+            return;
+        }
+
+        _lastFailureKey = key;
+        if (exception is null)
+        {
+            Log.Warning("{Message}", message);
+        }
+        else
+        {
+            Log.Warning(exception, "{Message}", message);
+        }
+    }
 
     public void Dispose() => _http.Dispose();
 
