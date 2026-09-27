@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FandNEL.Accounts;
 using FandNEL.Core.Protocol;
+using FandNEL.Core.Services;
 using FandNEL.Core.Utils.Http;
 using FandNEL.Gateway;
 using FandNEL.Gateway.Management;
@@ -71,11 +72,27 @@ internal static class Program
 
         public async Task RunAsync()
         {
+            await CheckPublicX19ApiAsync().ConfigureAwait(false);
             await CheckGameAliasesAsync().ConfigureAwait(false);
             await CheckMissingGameDoesNotUseAccountIdAsync().ConfigureAwait(false);
             await CheckRentalJavaIsolationAsync().ConfigureAwait(false);
             await CheckBedrockRequiresActivationAsync().ConfigureAwait(false);
             await CheckLocalWebSocketOrderAsync().ConfigureAwait(false);
+        }
+
+        private static async Task CheckPublicX19ApiAsync()
+        {
+            using var client = new HttpClient(new PublicX19ApiHandler());
+            using var api = new WebNexusApi("should-not-be-sent", client: client);
+
+            var handshake = await api.ComputePublicHandshakeBodyAsync(
+                42, "0123456789abcdef", Convert.ToBase64String(new byte[272]), "netease", "1.21").ConfigureAwait(false);
+            Assert(handshake.Contains("handshakeBody", StringComparison.Ordinal), "公开握手接口响应格式错误");
+
+            var authentication = await api.ComputePublicAuthenticationBodyAsync(
+                "server", 1234, "1.21", "{\"mods\":[]}", "netease", 42,
+                Convert.ToBase64String(new byte[16])).ConfigureAwait(false);
+            Assert(authentication.Contains("authBody", StringComparison.Ordinal), "公开认证接口响应格式错误");
         }
 
         private async Task CheckGameAliasesAsync()
@@ -241,6 +258,25 @@ internal static class Program
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
             {
                 Content = new StringContent(responseBody, Encoding.UTF8, "application/json")
+            });
+        }
+    }
+
+    private sealed class PublicX19ApiHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Assert(request.Method == HttpMethod.Post, "公开 X19 接口必须使用 POST");
+            Assert(request.Headers.Authorization is null, "公开 X19 接口不应发送 Authorization");
+            var body = request.RequestUri?.AbsolutePath switch
+            {
+                "/api/public/GameCipher/compute/authentication/handshake" => "{\"handshakeBody\":\"aA==\"}",
+                "/api/public/GameCipher/compute/authentication/body" => "{\"authBody\":\"aA==\"}",
+                _ => throw new InvalidOperationException($"公开 X19 请求路径错误：{request.RequestUri?.AbsolutePath}")
+            };
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json")
             });
         }
     }

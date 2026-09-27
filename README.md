@@ -13,7 +13,7 @@ src/FandNEL.GameLauncher/资源下载、7z 安装、Java 参数和进程生命�
 
 `FandNEL.Proxy` 的协议行为迁移自 `Codexus.Interceptors`，网络会话和注册表结构参考 NeoOpenNEL 的 Proxy。Proxy 不引用 `Codexus.Development.SDK`，也不依赖插件才能处理握手、登录、配置、压缩和加密。
 
-Core 的最终进服认证仍使用 Codexus 远程服务：先请求 `https://x19.update.netease.com/authserver.list`，再通过 `https://api.codexus.today/api/GameCipher/compute/authentication/*` 计算网易认证载荷。账号登录会执行 Codexus 的 `login-otp` 和 `authentication-otp` 激活流程，Proxy 只有在认证成功后才向远端发送加密响应。
+Core 的最终进服认证仍使用 Codexus 远程服务：先请求 `https://x19.update.netease.com/authserver.list`，再通过 `https://api.codexus.today/api/public/GameCipher/compute/authentication/*` 计算网易认证载荷。公开 X19 接口不需要 Nexus Token 或 `Authorization` 请求头；账号登录会执行 Codexus 的 `login-otp` 和 `authentication-otp` 激活流程，Proxy 只有在认证成功后才向远端发送加密响应。
 
 ## 构建
 

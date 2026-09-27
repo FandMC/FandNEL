@@ -9,7 +9,7 @@ namespace FandNEL.Gateway;
 /// <summary>把账户激活、Codexus 远程认证和无 SDK Proxy 连接接在一起。</summary>
 public sealed class GameProxyService(AccountService accounts) : IAsyncDisposable
 {
-    private readonly TcpProxyHost _host = new();
+    private readonly DotNettyProxyHost _host = new();
 
     public IReadOnlyCollection<FandNEL.Proxy.Protocol.IProxySession> Sessions => _host.Sessions;
 

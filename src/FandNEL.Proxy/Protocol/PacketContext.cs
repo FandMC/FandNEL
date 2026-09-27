@@ -5,6 +5,7 @@ namespace FandNEL.Proxy.Protocol;
 public sealed class PacketContext
 {
     private byte[] _payload;
+    private Func<ValueTask>? _afterForward;
 
     internal PacketContext(MinecraftConnection connection, PacketDirection direction, ConnectionState state, int packetId, byte[] payload)
     {
@@ -26,6 +27,17 @@ public sealed class PacketContext
     public PacketReader CreateReader() => new(_payload);
     public void Cancel() => IsCancelled = true;
     public void StopPropagation() => PropagationStopped = true;
+
+    public void AfterForward(Func<ValueTask> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        var previous = _afterForward;
+        _afterForward = previous is null
+            ? action
+            : async () => { await previous().ConfigureAwait(false); await action().ConfigureAwait(false); };
+    }
+
+    internal ValueTask CompleteForwardAsync() => _afterForward?.Invoke() ?? ValueTask.CompletedTask;
 
     public void ReplacePayload(ReadOnlySpan<byte> payload) => _payload = payload.ToArray();
 

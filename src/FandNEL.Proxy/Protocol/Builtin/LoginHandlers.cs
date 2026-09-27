@@ -58,9 +58,13 @@ public sealed class CompressionHandler : IPacketHandler
     {
         if (context.Version == ProtocolVersion.V1076)
             return ValueTask.CompletedTask;
-        context.Connection.EnableServerCompression(context.CreateReader().ReadVarInt());
-        // 与 Codexus 一致，只压缩远端链路；本地客户端不接收此控制包。
-        context.Cancel();
+        var threshold = context.CreateReader().ReadVarInt();
+        context.Connection.EnableServerCompression(threshold);
+        context.AfterForward(() =>
+        {
+            context.Connection.EnableClientCompression(threshold);
+            return ValueTask.CompletedTask;
+        });
         return ValueTask.CompletedTask;
     }
 }

@@ -29,6 +29,12 @@ public sealed class WebNexusApi : IDisposable
     public Task<string> ComputeHandshakeBodyAsync(int userId, string userToken, string base64Context, string channel, string gameVersion, CancellationToken cancellationToken = default) =>
         PostAsync("/api/GameCipher/compute/authentication/handshake", new { userId, userToken, base64Context, channel, gameVersion }, cancellationToken);
 
+    public Task<string> ComputePublicAuthenticationBodyAsync(string serverId, long gameId, string gameVersion, string modInfo, string channel, int userId, string handshakeKey, CancellationToken cancellationToken = default) =>
+        PostAsync("/api/public/GameCipher/compute/authentication/body", new { serverId, gameId, gameVersion, modInfo, channel, userId, handshakeKey }, cancellationToken, includeAuthorization: false);
+
+    public Task<string> ComputePublicHandshakeBodyAsync(int userId, string userToken, string base64Context, string channel, string gameVersion, CancellationToken cancellationToken = default) =>
+        PostAsync("/api/public/GameCipher/compute/authentication/handshake", new { userId, userToken, base64Context, channel, gameVersion }, cancellationToken, includeAuthorization: false);
+
     public Task<string> PeAccountConvert(string body, CancellationToken cancellationToken = default) =>
         PostAsync("/api/PeGameCipher/account/convert", new { body }, cancellationToken);
 
@@ -100,19 +106,19 @@ public sealed class WebNexusApi : IDisposable
         return await SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<string> PostAsync<T>(string endpoint, T data, CancellationToken cancellationToken)
+    private async Task<string> PostAsync<T>(string endpoint, T data, CancellationToken cancellationToken, bool includeAuthorization = true)
     {
-        using var request = CreateRequest(HttpMethod.Post, endpoint);
+        using var request = CreateRequest(HttpMethod.Post, endpoint, includeAuthorization);
         request.Content = JsonContent.Create(data);
         return await SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    private HttpRequestMessage CreateRequest(HttpMethod method, string endpoint)
+    private HttpRequestMessage CreateRequest(HttpMethod method, string endpoint, bool includeAuthorization = true)
     {
         var uri = new Uri(ServiceAddress, endpoint);
         var request = new HttpRequestMessage(method, uri);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        if (uri.Scheme == ServiceAddress.Scheme && uri.Authority == ServiceAddress.Authority
+        if (includeAuthorization && uri.Scheme == ServiceAddress.Scheme && uri.Authority == ServiceAddress.Authority
             && !string.IsNullOrWhiteSpace(_token))
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
         return request;

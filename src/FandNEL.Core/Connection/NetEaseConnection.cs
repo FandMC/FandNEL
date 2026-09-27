@@ -49,7 +49,10 @@ public static class NetEaseConnection
 
     private static async Task AuthenticateAsync(JavaJoinRequest request, string address, int port, Func<string, string, int, string, byte[], string, byte[]>? buildEstablishing, Func<string, ChaChaOfSalsa, string, long, string, string, string, int, byte[], byte[]>? buildJoinServerMessage, CancellationToken cancellationToken)
     {
-        if (!long.TryParse(request.GameId, NumberStyles.None, CultureInfo.InvariantCulture, out var gameId)) throw new ArgumentException("游戏 ID 必须为数字。", nameof(request));
+        if (!long.TryParse(request.GameId, NumberStyles.None, CultureInfo.InvariantCulture, out var gameId) || gameId < 0)
+            throw new ArgumentException("游戏 ID 必须为非负数字。", nameof(request));
+        if (string.IsNullOrEmpty(request.UserToken) || request.UserToken.Length != 16 || request.UserToken.Any(character => character > 0x7f))
+            throw new ArgumentException("网易游戏令牌必须为恰好 16 个 ASCII 字符，请重新激活账号。", nameof(request));
         var tokenBytes = Encoding.ASCII.GetBytes(request.UserToken);
         if (tokenBytes.Length != TokenKey.Length) throw new ArgumentException("网易游戏令牌长度无效，请重新激活账号。", nameof(request));
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -61,13 +64,13 @@ public static class NetEaseConnection
         await using var stream = client.GetStream();
         using var details = await stream.ReadSteamWithInt16Async(token).ConfigureAwait(false);
         var context = details.ToArray();
-        if (context.Length < 272) throw new InvalidDataException("网易认证握手缺少密钥或证书。");
+        if (context.Length != 272) throw new InvalidDataException("网易认证握手上下文长度无效，必须为 272 字节。");
         var remoteKey = context[..16];
         byte[] establishing;
         if (buildEstablishing is not null) establishing = buildEstablishing(request.NexusToken, request.GameVersion, request.UserId, request.UserToken, context, "netease");
         else
         {
-            var json = await api.ComputeHandshakeBodyAsync(request.UserId, request.UserToken, Convert.ToBase64String(context), "netease", request.GameVersion, token).ConfigureAwait(false);
+            var json = await api.ComputePublicHandshakeBodyAsync(request.UserId, request.UserToken, Convert.ToBase64String(context), "netease", request.GameVersion, token).ConfigureAwait(false);
             establishing = Convert.FromBase64String(JsonSerializer.Deserialize<EntityHandshake>(json)?.HandshakeBody ?? throw new InvalidDataException("Codexus 未返回认证握手。"));
         }
         await stream.WriteAsync(establishing, token).ConfigureAwait(false);
@@ -80,7 +83,7 @@ public static class NetEaseConnection
         if (buildJoinServerMessage is not null) join = buildJoinServerMessage(request.NexusToken, encrypt, request.ServerId, gameId, request.GameVersion, request.ModInfo, "netease", request.UserId, remoteKey);
         else
         {
-            var json = await api.ComputeAuthenticationBodyAsync(request.ServerId, gameId, request.GameVersion, request.ModInfo, "netease", request.UserId, Convert.ToBase64String(remoteKey), token).ConfigureAwait(false);
+            var json = await api.ComputePublicAuthenticationBodyAsync(request.ServerId, gameId, request.GameVersion, request.ModInfo, "netease", request.UserId, Convert.ToBase64String(remoteKey), token).ConfigureAwait(false);
             var authBody = JsonSerializer.Deserialize<AuthenticationBody>(json)?.AuthBody ?? throw new InvalidDataException("Codexus 未返回进服认证载荷。");
             join = encrypt.PackMessage(9, Convert.FromBase64String(authBody));
         }
