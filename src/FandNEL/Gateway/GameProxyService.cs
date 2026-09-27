@@ -1,6 +1,7 @@
 using System.Net;
 using FandNEL.Accounts;
 using FandNEL.Core.Connection;
+using FandNEL.Proxy.Irc;
 using FandNEL.Proxy.Models;
 using FandNEL.Proxy.Services;
 
@@ -21,30 +22,46 @@ public sealed class GameProxyService(AccountService accounts) : IAsyncDisposable
         if (!int.TryParse(session.UserId, out var numericUserId))
             throw new InvalidOperationException("网易账号 ID 不是有效的数字。");
 
-        var proxy = await _host.StartAsync(new ProxyOptions
-        {
-            ListenAddress = request.ListenAddress,
-            ListenPort = request.ListenPort,
-            Target = request.Target,
-            GameId = request.GameId,
-            GameVersion = request.GameVersion,
-            ModInfo = request.ModInfo,
-            UserId = request.UserId,
-            AccessToken = session.Token,
-            Role = request.Role,
-            RentalServerId = request.RentalServerId,
-            Socks5 = request.Socks5,
-            EnableLanBroadcast = request.EnableLanBroadcast,
-            LanMotd = request.LanMotd,
-            AddForgeHandshakeSuffix = request.AddForgeHandshakeSuffix,
-            JoinServerAsync = (serverId, ct) => NetEaseConnection.AuthenticateAsync(
-                new JavaJoinRequest(serverId, request.GameId, request.GameVersion, request.ModInfo,
-                    request.NexusToken, numericUserId, session.Token), ct)
-        }, cancellationToken).ConfigureAwait(false);
+        // 游戏内 IRC（/IRC 与 NeoEastSide 聊天室互通）：配置默认生成在 %LOCALAPPDATA%/FandNEL/irc.json。
+        var ircOptions = IrcChatOptions.Load();
+        var irc = ircOptions.IsUsable ? new IrcChatBridge(ircOptions) : null;
 
-        var endpoint = proxy.Snapshot.LocalEndpoint
-            ?? throw new InvalidOperationException("Proxy 未返回本地监听端点。");
-        return new GameProxyLease(proxy, new GameLauncher.Services.ProxyEndpoint(endpoint.Address.ToString(), endpoint.Port));
+        try
+        {
+            var proxy = await _host.StartAsync(new ProxyOptions
+            {
+                ListenAddress = request.ListenAddress,
+                ListenPort = request.ListenPort,
+                Target = request.Target,
+                GameId = request.GameId,
+                GameVersion = request.GameVersion,
+                ModInfo = request.ModInfo,
+                UserId = request.UserId,
+                AccessToken = session.Token,
+                Role = request.Role,
+                RentalServerId = request.RentalServerId,
+                Socks5 = request.Socks5,
+                EnableLanBroadcast = request.EnableLanBroadcast,
+                LanMotd = request.LanMotd,
+                AddForgeHandshakeSuffix = request.AddForgeHandshakeSuffix,
+                JoinServerAsync = (serverId, ct) => NetEaseConnection.AuthenticateAsync(
+                    new JavaJoinRequest(serverId, request.GameId, request.GameVersion, request.ModInfo,
+                        request.NexusToken, numericUserId, session.Token), ct),
+                ConfigureRegistry = irc is null ? null : irc.AttachRegistry
+            }, cancellationToken).ConfigureAwait(false);
+
+            irc?.BindSession(proxy);
+
+            var endpoint = proxy.Snapshot.LocalEndpoint
+                ?? throw new InvalidOperationException("Proxy 未返回本地监听端点。");
+            return new GameProxyLease(proxy, new GameLauncher.Services.ProxyEndpoint(endpoint.Address.ToString(), endpoint.Port));
+        }
+        catch
+        {
+            if (irc is not null)
+                await irc.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
     }
 
     public ValueTask DisposeAsync() => _host.DisposeAsync();
