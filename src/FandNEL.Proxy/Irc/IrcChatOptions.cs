@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Serilog;
 using System.Text.Json.Serialization;
 
 namespace FandNEL.Proxy.Irc;
@@ -21,11 +22,6 @@ public sealed record IrcChatOptions
 
     /// <summary>聊天室账号密码。留空则不启用。</summary>
     public string Password { get; init; } = string.Empty;
-
-    /// <summary>
-    /// 设备标识。留空表示按本机 MachineGuid 生成（与 NeoEastSide 客户端一致）。
-    /// </summary>
-    public string Hwid { get; init; } = string.Empty;
 
     /// <summary>是否每 6 秒在游戏内提示聊天室在线人数。</summary>
     public bool ShowOnlineHint { get; init; } = true;
@@ -70,7 +66,7 @@ public sealed record IrcChatOptions
             {
                 var defaults = new IrcChatOptions();
                 Save(defaults);
-                IrcLog.Write($"已生成默认 IRC 配置：{ConfigPath}");
+                Log.Information("IRC: default config written to {Path}", ConfigPath);
                 return defaults;
             }
 
@@ -79,7 +75,7 @@ public sealed record IrcChatOptions
         }
         catch (Exception exception)
         {
-            IrcLog.Write($"读取 IRC 配置失败，改用默认值：{exception.Message}");
+            Log.Warning(exception, "IRC: failed to read config, falling back to defaults");
             return new IrcChatOptions();
         }
     }
@@ -99,7 +95,7 @@ public sealed record IrcChatOptions
         }
         catch (Exception exception)
         {
-            IrcLog.Write($"写入 IRC 配置失败：{exception.Message}");
+            Log.Warning(exception, "IRC: failed to write config");
         }
     }
 }

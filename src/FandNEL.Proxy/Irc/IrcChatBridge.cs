@@ -3,6 +3,7 @@ using System.Text;
 using FandNEL.Proxy.Models;
 using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Sessions;
+using Serilog;
 
 namespace FandNEL.Proxy.Irc;
 
@@ -27,12 +28,12 @@ public sealed class IrcChatBridge : IAsyncDisposable
     private string _displayName;
     private int _disposed;
 
-    public IrcChatBridge(IrcChatOptions options)
+    public IrcChatBridge(IrcChatOptions options, string hwid)
     {
         ArgumentNullException.ThrowIfNull(options);
         _options = options;
         _displayName = options.Username;
-        _session = new IrcChatSession(options);
+        _session = new IrcChatSession(options, hwid);
     }
 
     /// <summary>把 IRC 拦截器注册进会话自己的协议注册表（由 ProxyOptions.ConfigureRegistry 调用）。</summary>
@@ -64,7 +65,8 @@ public sealed class IrcChatBridge : IAsyncDisposable
                 (context, _) => HandleJoinGameAsync(context), versions);
         }
 
-        IrcLog.Write($"IRC 拦截已注册（{IrcProtocol.Specs.Length} 个协议版本，账号 {_options.Username}）。");
+        Log.Information("IRC: interceptors attached for {VersionCount} protocol versions (account {Username})",
+            IrcProtocol.Specs.Length, _options.Username);
     }
 
     /// <summary>绑定代理会话生命周期：会话停止或出错时自动停止轮询。</summary>
@@ -114,7 +116,7 @@ public sealed class IrcChatBridge : IAsyncDisposable
             session.EventOccurred -= OnSessionEvent;
         }
 
-        IrcLog.Write("代理会话已结束，IRC 桥停止。");
+        Log.Information("IRC: proxy session ended, bridge stopped");
         _ = DisposeAsync();
     }
 
@@ -167,15 +169,16 @@ public sealed class IrcChatBridge : IAsyncDisposable
             var result = await _session.SendAsync(content, _lifetime.Token).ConfigureAwait(false);
             if (!result.Success)
             {
-                IrcLog.Write($"发送到聊天室失败：{result.Message}");
+                Log.Warning("IRC: message rejected: {Reason}", result.Message);
                 await InjectAsync(connection, $"§c发送失败：{result.Message}").ConfigureAwait(false);
                 return;
             }
 
             // 本地毫秒级回显；服务器回环的同一条消息会被去重跳过，不会重复显示。
+            // 广播给所有连接：局域网模式下同一代理可能挂着多个本地玩家。
             RememberLocalEcho(content);
-            await InjectAsync(connection, Format(_displayName, content)).ConfigureAwait(false);
-            IrcLog.Write($"已发送到聊天室：{content}");
+            await BroadcastAsync(Format(_displayName, content)).ConfigureAwait(false);
+            Log.Information("IRC: message sent: {Text}", content);
         }
         catch (OperationCanceledException)
         {
@@ -183,7 +186,7 @@ public sealed class IrcChatBridge : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            IrcLog.Write("发送到聊天室异常：" + exception.Message);
+            Log.Warning(exception, "IRC: send failed");
             await InjectAsync(connection, "§c发送失败：" + exception.Message).ConfigureAwait(false);
         }
     }
@@ -200,7 +203,7 @@ public sealed class IrcChatBridge : IAsyncDisposable
             return;
         }
 
-        IrcLog.Write("游戏客户端已接入，IRC 开始收发。");
+        Log.Information("IRC: game client joined, chat bridge active");
         StartPump();
         _ = Task.Run(() => WelcomeAsync(connection));
     }
@@ -266,7 +269,7 @@ public sealed class IrcChatBridge : IAsyncDisposable
 
                 if (poll.Disabled)
                 {
-                    IrcLog.Write("聊天室账号已被禁用，IRC 桥停止。");
+                    Log.Warning("IRC: chat account disabled, bridge stopped");
                     await BroadcastAsync("§c聊天室账号已被禁用，IRC 功能已停止。").ConfigureAwait(false);
                     return;
                 }
@@ -317,8 +320,7 @@ public sealed class IrcChatBridge : IAsyncDisposable
             }
             catch (Exception exception)
             {
-                IrcLog.Write("IRC 轮询异常：" + exception.Message);
-                _session.InvalidateLogin();
+                Log.Warning(exception, "IRC: unexpected poll loop error");
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
@@ -376,7 +378,7 @@ public sealed class IrcChatBridge : IAsyncDisposable
         }
         catch (Exception exception)
         {
-            IrcLog.Write($"注入游戏失败（移除该连接）：{exception.Message}");
+            Log.Warning(exception, "IRC: failed to inject chat message, dropping connection");
             _connections.TryRemove(connection, out _);
         }
     }
@@ -397,7 +399,7 @@ public sealed class IrcChatBridge : IAsyncDisposable
         }
 
         _displayName = name;
-        IrcLog.Write($"聊天室显示名已校准为 {name}。");
+        Log.Information("IRC: display name resolved to {Name}", name);
     }
 
     private void RememberLocalEcho(string content)

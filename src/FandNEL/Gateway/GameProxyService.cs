@@ -1,6 +1,7 @@
 using System.Net;
 using FandNEL.Accounts;
 using FandNEL.Core.Connection;
+using FandNEL.Core.Storage;
 using FandNEL.Proxy.Irc;
 using FandNEL.Proxy.Models;
 using FandNEL.Proxy.Services;
@@ -24,7 +25,9 @@ public sealed class GameProxyService(AccountService accounts) : IAsyncDisposable
 
         // 游戏内 IRC（/IRC 与 NeoEastSide 聊天室互通）：配置默认生成在 %LOCALAPPDATA%/FandNEL/irc.json。
         var ircOptions = IrcChatOptions.Load();
-        var irc = ircOptions.IsUsable ? new IrcChatBridge(ircOptions) : null;
+        var irc = ircOptions.IsUsable
+            ? new IrcChatBridge(ircOptions, new DeviceIdentity().GetOrCreateHashed())
+            : null;
 
         try
         {
