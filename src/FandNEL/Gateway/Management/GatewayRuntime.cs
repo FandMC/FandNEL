@@ -1,5 +1,8 @@
+using System.IO;
 using FandNEL.Accounts;
 using FandNEL.Core.Protocol;
+using FandNEL.GameLauncher.Models;
+using FandNEL.GameLauncher.Services.Java;
 
 namespace FandNEL.Gateway.Management;
 
@@ -23,6 +26,7 @@ public sealed class GatewayRuntime : IAsyncDisposable
         Accounts = new AccountManager(accounts, Tokens, JavaUsers, Events);
         Sessions = new ProxySessionManager(Events);
         Launchers = new LauncherTaskManager(Events);
+        JavaLauncher = new JavaLauncherService(launcher, new LauncherPaths(Path.Combine(accounts.DataDirectory, "launcher")));
         Catalog = new GameCatalogService(launcher, accounts);
         Games = new GameManager(Accounts, Catalog, proxy, Tokens, Sessions, Launchers, Events);
         WebSocket = new LocalGatewayWebSocketServer(this);
@@ -35,6 +39,7 @@ public sealed class GatewayRuntime : IAsyncDisposable
     public AccountManager Accounts { get; }
     public ProxySessionManager Sessions { get; }
     public LauncherTaskManager Launchers { get; }
+    public JavaLauncherService JavaLauncher { get; }
     public GameCatalogService Catalog { get; }
     public GameManager Games { get; }
     public LocalGatewayWebSocketServer WebSocket { get; }

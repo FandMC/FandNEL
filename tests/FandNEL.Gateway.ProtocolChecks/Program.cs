@@ -13,6 +13,7 @@ using FandNEL.Core.Services;
 using FandNEL.Core.Utils.Http;
 using FandNEL.Gateway;
 using FandNEL.Gateway.Management;
+using FandNEL.Proxy.Protocol.Nbt;
 
 internal static class Program
 {
@@ -78,6 +79,22 @@ internal static class Program
             await CheckRentalJavaIsolationAsync().ConfigureAwait(false);
             await CheckBedrockRequiresActivationAsync().ConfigureAwait(false);
             await CheckLocalWebSocketOrderAsync().ConfigureAwait(false);
+            CheckNbtCodec();
+        }
+
+        private static void CheckNbtCodec()
+        {
+            var root = new NbtCompound("根").Set("byte", new NbtByte(-1)).Set("short", new NbtShort(short.MinValue)).Set("int", new NbtInt(int.MaxValue)).Set("long", new NbtLong(long.MinValue)).Set("float", new NbtFloat(float.NaN)).Set("double", new NbtDouble(double.PositiveInfinity)).Set("bytes", new NbtByteArray([])).Set("text", new NbtString("中文")).Set("ints", new NbtIntArray([1, -2])).Set("longs", new NbtLongArray([long.MaxValue]));
+            root.Set("list", new NbtList(NbtTagType.Compound, [new NbtCompound().Set("nested", new NbtString("ok"))]));
+            var encoded = NbtCodec.Write(root);
+            var decoded = (NbtCompound)NbtCodec.Read(encoded);
+            Assert(decoded.Name == "根" && ((NbtString)decoded["text"]).Value == "中文", "NBT UTF-8 或根名称 round-trip 失败");
+            Assert(NbtCodec.Write(decoded).SequenceEqual(encoded), "NBT round-trip 字节语义不一致");
+            AssertThrows<InvalidDataException>(() => NbtCodec.Read(new byte[] { 99 }), "非法 Tag ID 未拒绝");
+            AssertThrows<InvalidDataException>(() => NbtCodec.Read(new byte[] { 10, 0, 0 }), "缺少 Compound End 未拒绝");
+            AssertThrows<InvalidDataException>(() => NbtCodec.Read(new byte[] { 9, 0, 0, 1, 0, 0, 0, 1 }), "列表类型不匹配未拒绝");
+            AssertThrows<InvalidDataException>(() => NbtCodec.Read(new byte[] { 7, 0, 0, 255, 255, 255, 255 }), "负数组长度未拒绝");
+            AssertThrows<InvalidDataException>(() => NbtCodec.Read(NbtCodec.Write(new NbtString("long")), new NbtLimits(MaxStringBytes: 1)), "字符串限制未生效");
         }
 
         private static async Task CheckPublicX19ApiAsync()
@@ -346,6 +363,14 @@ internal static class Program
         {
             return;
         }
+        throw new InvalidOperationException(message);
+    }
+
+    private static void AssertThrows<TException>(Action operation, string message)
+        where TException : Exception
+    {
+        try { operation(); }
+        catch (TException) { return; }
         throw new InvalidOperationException(message);
     }
 

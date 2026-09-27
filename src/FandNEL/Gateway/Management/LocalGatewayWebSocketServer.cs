@@ -6,10 +6,15 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Runtime.CompilerServices;
 using FandNEL.Core.Protocol;
 using FandNEL.Core.Entities.G79;
 using FandNEL.Protocol.Authentication;
 using FandNEL.Proxy.Models;
+using FandNEL.Core.Entities.WPFLauncher.NetGame;
+using FandNEL.Core.Entities.WPFLauncher.NetGame.Texture;
+using FandNEL.Core.Utils;
+using FandNEL.GameLauncher.Models;
 using Serilog;
 
 namespace FandNEL.Gateway.Management;
@@ -37,6 +42,7 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
     private readonly Lazy<G79> _g79 = new(() => new G79(), LazyThreadSafetyMode.ExecutionAndPublication);
     private readonly List<Task> _connections = [];
     private readonly object _connectionsLock = new();
+    private readonly ConditionalWeakTable<WebSocket, SemaphoreSlim> _sendLocks = new();
     private HttpListener? _listener;
     private Task? _acceptTask;
     private int _port;
@@ -152,10 +158,16 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
             await RunSessionAsync(socket, cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-        catch (WebSocketException) { }
+        catch (WebSocketException exception)
+        {
+            Log.Debug(exception, "Local gateway WebSocket session failed (closeStatus={CloseStatus}, closeDescription={CloseDescription})",
+                socket?.CloseStatus, socket?.CloseStatusDescription);
+        }
         catch (Exception exception) { Log.Debug(exception, "Local gateway WebSocket session failed"); }
         finally
         {
+            Log.Debug("Local gateway WebSocket session ended (state={State}, closeStatus={CloseStatus}, closeDescription={CloseDescription})",
+                socket?.State, socket?.CloseStatus, socket?.CloseStatusDescription);
             if (socket is { State: WebSocketState.Open })
             {
                 try { await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Server closed", CancellationToken.None).ConfigureAwait(false); }
@@ -173,7 +185,12 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
         while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
         {
             var wireBytes = await ReceiveMessageAsync(socket, cancellationToken).ConfigureAwait(false);
-            if (wireBytes is null) break;
+            if (wireBytes is null)
+            {
+                Log.Debug("Local gateway WebSocket received close frame (state={State}, closeStatus={CloseStatus}, closeDescription={CloseDescription})",
+                    socket.State, socket.CloseStatus, socket.CloseStatusDescription);
+                break;
+            }
             var json = sessionKey is null ? Encoding.UTF8.GetString(wireBytes) : Decrypt(wireBytes, sessionKey);
             GatewayWireMessage? message;
             try { message = JsonSerializer.Deserialize<GatewayWireMessage>(json, JsonOptions); }
@@ -278,6 +295,9 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
             case "join_game":
                 await JoinGameAsync(socket, message.Payload, identify, key, cancellationToken).ConfigureAwait(false);
                 break;
+            case "launch_game":
+                await LaunchGameAsync(socket, message.Payload, identify, key, cancellationToken).ConfigureAwait(false);
+                break;
             case "java_edition/network/session/config":
                 await SendSessionConfigAsync(socket, message.Payload, identify, key, cancellationToken).ConfigureAwait(false);
                 break;
@@ -333,7 +353,6 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
         var lease = await _runtime.Games.StartProxyAsync(new GameProxyRequest
         {
             UserId = request.UserId,
-            NexusToken = request.Token,
             GameId = request.GameId,
             GameVersion = request.Version,
             Target = new ServerTarget(request.ServerIp, request.ServerPort),
@@ -345,6 +364,54 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
 
         await SendAsync(socket, "success_notification", "已成功创建新的拦截器!", identify, key, cancellationToken).ConfigureAwait(false);
         await SendAsync(socket, "join_game/success", lease.Session.Id.ToString(), identify, key, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task LaunchGameAsync(WebSocket socket, string? payload, string? identify, byte[] key,
+        CancellationToken cancellationToken)
+    {
+        var request = JsonSerializer.Deserialize<LaunchGameWireRequest>(payload ?? string.Empty, JsonOptions)
+            ?? throw new InvalidOperationException("无效的 Java 启动请求。");
+        if (string.IsNullOrWhiteSpace(request.UserId)) throw new ArgumentException("Java 账号不能为空。");
+        if (string.IsNullOrWhiteSpace(request.GameId)) throw new ArgumentException("游戏 ID 不能为空。");
+        if (string.IsNullOrWhiteSpace(request.RoleName)) throw new ArgumentException("请选择或创建游戏角色。");
+        if (string.IsNullOrWhiteSpace(request.GameVersion)) throw new ArgumentException("游戏版本不能为空。");
+        if (!Enum.TryParse<EnumGameVersion>("V_" + request.GameVersion.Replace('.', '_'), out var gameVersion))
+            gameVersion = GameVersionConverter.Convert(request.GameVersionId);
+        if (!Enum.IsDefined(gameVersion) || gameVersion is EnumGameVersion.NONE or EnumGameVersion.V_CPP or EnumGameVersion.V_X64_CPP or EnumGameVersion.V_RTX)
+            throw new ArgumentException("不支持的 Java 游戏版本。");
+
+        var session = await _runtime.Accounts.GetSessionAsync(request.UserId, cancellationToken).ConfigureAwait(false);
+        var launchRequest = new JavaLaunchRequest
+        {
+            UserId = request.UserId,
+            UserToken = session.Token,
+            GameId = request.GameId,
+            RoleName = request.RoleName,
+            GameVersion = gameVersion,
+            ServerHost = request.ServerIp,
+            ServerPort = request.ServerPort,
+            GameType = (EnumGType)request.GameType,
+            MaxMemoryMb = request.MaxGameMemory,
+            LoadCoreMods = request.LoadCoreMods,
+            ProtocolVersion = request.GameVersion
+        };
+        var progress = new Progress<LaunchProgress>(value =>
+            _ = SendAsync(socket, "launch_progress", JsonSerializer.Serialize(new { stage = value.Stage.ToString(), message = value.Message }, JsonOptions), identify, key, CancellationToken.None));
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await using var handle = await _runtime.JavaLauncher.LaunchAsync(launchRequest, progress, CancellationToken.None).ConfigureAwait(false);
+                await SendAsync(socket, "launch_game/success", JsonSerializer.Serialize(new { process_id = handle.ProcessId }, JsonOptions), identify, key, CancellationToken.None).ConfigureAwait(false);
+                await handle.WaitForExitAsync().ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                Log.Error(exception, "Java game launch failed for {UserId}", request.UserId);
+                try { await SendAsync(socket, "error_notification", $"启动游戏失败: {exception.Message}", identify, key, CancellationToken.None).ConfigureAwait(false); } catch { }
+            }
+        });
+        await SendAsync(socket, "launch_game", string.Empty, identify, key, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task SendSessionConfigAsync(WebSocket socket, string? payload, string? identify, byte[] key,
@@ -643,12 +710,23 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
         return await Task.Run(() => _g79.Value.AuthenticationOtp(cookie, request.Token ?? string.Empty), cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task SendAsync(WebSocket socket, string type, string payload, string? identify, byte[]? key, CancellationToken cancellationToken)
+    private async Task SendAsync(WebSocket socket, string type, string payload, string? identify, byte[]? key, CancellationToken cancellationToken)
     {
         var message = JsonSerializer.Serialize(new GatewayWireMessage(type, payload, Sha256(payload), identify), JsonOptions);
         var bytes = Encoding.UTF8.GetBytes(message);
         if (key is not null) bytes = Encrypt(bytes, key);
-        await socket.SendAsync(bytes, WebSocketMessageType.Binary, true, cancellationToken).ConfigureAwait(false);
+        // WebSocket 不允许并发 SendAsync。启动进度来自后台线程，必须和即时响应串行发送。
+        var gate = _sendLocks.GetValue(socket, static _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (socket.State != WebSocketState.Open) return;
+            await socket.SendAsync(bytes, WebSocketMessageType.Binary, true, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            gate.Release();
+        }
     }
 
     private static async Task<byte[]?> ReceiveMessageAsync(WebSocket socket, CancellationToken cancellationToken)
@@ -758,9 +836,19 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
         [property: JsonPropertyName("version")] string Version,
         [property: JsonPropertyName("ip")] string ServerIp,
         [property: JsonPropertyName("port")] int ServerPort,
-        [property: JsonPropertyName("nid")] string NexusId,
-        [property: JsonPropertyName("token")] string Token,
         [property: JsonPropertyName("socks5")] Socks5WireRequest? Socks5);
+
+    private sealed record LaunchGameWireRequest(
+        [property: JsonPropertyName("user_id")] string UserId,
+        [property: JsonPropertyName("game_id")] string GameId,
+        [property: JsonPropertyName("role_name")] string RoleName,
+        [property: JsonPropertyName("game_type")] int GameType,
+        [property: JsonPropertyName("game_version_id")] int GameVersionId,
+        [property: JsonPropertyName("game_version")] string GameVersion,
+        [property: JsonPropertyName("server_ip")] string ServerIp,
+        [property: JsonPropertyName("server_port")] int ServerPort,
+        [property: JsonPropertyName("max_game_memory")] int MaxGameMemory = 4096,
+        [property: JsonPropertyName("load_core_mods")] bool LoadCoreMods = true);
 
     private sealed record Socks5WireRequest(
         [property: JsonPropertyName("enabled")] bool Enabled,

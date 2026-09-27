@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using FandNEL.Proxy.Protocol.Nbt;
 
 namespace FandNEL.Proxy.Protocol;
 
@@ -50,6 +51,10 @@ public sealed class PacketWriter : IDisposable
             throw new InvalidDataException("字符串超过允许长度。");
         return WriteByteArray(Encoding.UTF8.GetBytes(value));
     }
+
+    public PacketWriter WriteNbt(NbtTag tag, NbtLimits? limits = null) { NbtCodec.Write(this, tag, limits); return this; }
+
+    public PacketWriter WriteNetworkNbtCompound(NbtCompound compound, NbtLimits? limits = null) { NbtCodec.WriteNetworkCompound(this, compound, limits); return this; }
 
     public byte[] ToArray() => _stream.ToArray();
     public void Dispose() => _stream.Dispose();

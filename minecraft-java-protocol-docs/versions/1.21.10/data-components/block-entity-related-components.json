@@ -1,0 +1,22 @@
+{
+  "block_related": [
+    "minecraft:bees",
+    "minecraft:block_entity_data",
+    "minecraft:block_state",
+    "minecraft:blocks_attacks",
+    "minecraft:container",
+    "minecraft:container_loot",
+    "minecraft:creative_slot_lock",
+    "minecraft:lock",
+    "minecraft:note_block_sound",
+    "minecraft:pot_decorations"
+  ],
+  "entity_related": [
+    "minecraft:bees",
+    "minecraft:block_entity_data",
+    "minecraft:bucket_entity_data",
+    "minecraft:entity_data",
+    "minecraft:profile"
+  ],
+  "note": "Data Components belong to ItemStack. Block entries below refer to block items; entities use NBT and synced entity data rather than a per-entity component map."
+}

@@ -42,7 +42,7 @@ const accountTabs: Array<{ label: string; value: AccountTab }> = [
 
 export function DashboardPage() {
   const { gateway, items: accountItems, loading } = useGatewayList<GatewayAccount>("get_accounts");
-  const { user, getAccessToken } = useAuth();
+  const { user } = useAuth();
   const { notify } = useToasts();
   const navigate = useNavigate();
   const [loginOpen, setLoginOpen] = useState(false);
@@ -59,7 +59,6 @@ export function DashboardPage() {
       type: "",
       details: account.id,
       platform: account.platform,
-      token: await getAccessToken(),
     });
   };
 
@@ -204,7 +203,6 @@ function AccountRow({ account, onToggle }: { account: GatewayAccount; onToggle()
 
 export function AccountLoginModal({ onClose }: { onClose(): void }) {
   const gateway = useGateway();
-  const { getAccessToken } = useAuth();
   const [tab, setTab] = useState<AccountTab>(() => accountTabs[Number(sessionStorage.getItem("X-ACTIVE-TAB") || 0)]?.value || "cookie");
   const [cookie, setCookie] = useState("");
   const [email, setEmail] = useState("");
@@ -269,7 +267,7 @@ export function AccountLoginModal({ onClose }: { onClose(): void }) {
     setBusy(true);
     setError("");
     try {
-      await gateway.send("login", { channel: "netease", type, details, platform, token: await getAccessToken() });
+      await gateway.send("login", { channel: "netease", type, details, platform });
     } catch (sendError) {
       setBusy(false);
       setError(sendError instanceof Error ? sendError.message : "Login failed.");
@@ -299,7 +297,6 @@ export function AccountLoginModal({ onClose }: { onClose(): void }) {
         type: "password",
         details: JSON.stringify({ account: pcUser, password: pcPassword, captcha_identifier: captchaId, captcha: captcha || null }),
         platform,
-        token: await getAccessToken(),
       });
     } catch (sendError) {
       setBusy(false);

@@ -1,0 +1,117 @@
+{
+  "errors": [],
+  "status": "passed",
+  "versions": [
+    {
+      "actual": 27,
+      "applicable": 27,
+      "data_component_catalog": {},
+      "failed": 0,
+      "game_version": "1.8.9",
+      "inventory": 44,
+      "missing": 0,
+      "not_available_at_cutoff": 17,
+      "packet_states": [
+        "Handshaking",
+        "Login",
+        "Play",
+        "Status"
+      ],
+      "protocol_version": 47
+    },
+    {
+      "actual": 30,
+      "applicable": 30,
+      "data_component_catalog": {},
+      "failed": 0,
+      "game_version": "1.12.2",
+      "inventory": 44,
+      "missing": 0,
+      "not_available_at_cutoff": 14,
+      "packet_states": [
+        "Handshaking",
+        "Login",
+        "Play",
+        "Status"
+      ],
+      "protocol_version": 340
+    },
+    {
+      "actual": 37,
+      "applicable": 37,
+      "data_component_catalog": {},
+      "failed": 0,
+      "game_version": "1.20",
+      "inventory": 44,
+      "missing": 0,
+      "not_available_at_cutoff": 7,
+      "packet_states": [
+        "Handshaking",
+        "Login",
+        "Play",
+        "Status"
+      ],
+      "protocol_version": 763
+    },
+    {
+      "actual": 42,
+      "applicable": 42,
+      "data_component_catalog": {
+        "components": 56
+      },
+      "failed": 0,
+      "game_version": "1.20.6",
+      "inventory": 44,
+      "missing": 0,
+      "not_available_at_cutoff": 2,
+      "packet_states": [
+        "Configuration",
+        "Handshaking",
+        "Login",
+        "Play",
+        "Status"
+      ],
+      "protocol_version": 766
+    },
+    {
+      "actual": 44,
+      "applicable": 44,
+      "data_component_catalog": {
+        "components": 96
+      },
+      "failed": 0,
+      "game_version": "1.21.8",
+      "inventory": 44,
+      "missing": 0,
+      "not_available_at_cutoff": 0,
+      "packet_states": [
+        "Configuration",
+        "Handshaking",
+        "Login",
+        "Play",
+        "Status"
+      ],
+      "protocol_version": 772
+    },
+    {
+      "actual": 44,
+      "applicable": 44,
+      "data_component_catalog": {
+        "components": 96
+      },
+      "failed": 0,
+      "game_version": "1.21.10",
+      "inventory": 44,
+      "missing": 0,
+      "not_available_at_cutoff": 0,
+      "packet_states": [
+        "Configuration",
+        "Handshaking",
+        "Login",
+        "Play",
+        "Status"
+      ],
+      "protocol_version": 773
+    }
+  ]
+}

@@ -40,7 +40,7 @@ public sealed class JavaLauncherService(WPFLauncher launcher, LauncherPaths path
             rpc.Start();
             var rpcPort = rpc.Port;
             authentication = new AuthLibProtocol(IPAddress.Loopback, authPort, System.Text.Json.JsonSerializer.Serialize(mods),
-                MinecraftInstaller.VersionName(request.GameVersion), request.AccessToken,
+                MinecraftInstaller.VersionName(request.GameVersion), string.Empty,
                 (userId, _) => Task.FromResult<string?>(userId == request.UserId ? request.UserToken : null));
             authentication.Start();
             authPort = authentication.Port;

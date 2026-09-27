@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { SkinViewer, WalkingAnimation } from "skinview3d";
-import { useAuth, useGateway, useToasts } from "../context/AppContext";
+import { useGateway, useToasts } from "../context/AppContext";
 import { loadGatewaySettings } from "../lib/settingsStorage";
 import { generateRandomNickname } from "../lib/randomNickname";
 import type { GatewayMessage } from "../types";
@@ -254,7 +254,6 @@ function readRealmModItemIds(sid: string): string[] {
 export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { getAccessToken } = useAuth();
   const { status, send, messages } = useGateway();
   const { notify } = useToasts();
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -455,7 +454,6 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
 			if (!address.host.trim() || !Number.isInteger(address.port) || address.port <= 0 || address.port > 65535) {
 				throw new Error("The server has not provided a valid connection address. Please try again later.");
 			}
-			const accessToken = await getAccessToken();
       const gatewaySettings = await loadGatewaySettings();
       const pePath = gatewaySettings.peLaunchPath;
       const hasCustomPath = pePath.trim().length > 0;
@@ -468,7 +466,6 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
         ...(interceptor ? {} : { client_type: 2, launch_type: hasCustomPath ? 0 : 1, ...(hasCustomPath ? { launch_path: pePath } : {}) }),
         game_type: realms || domainRealm ? 8 : 2,
         ...(domainRealm ? { is_domain_game: true } : {}),
-        access_token: accessToken,
         server_ip: address.host,
         server_port: address.port,
         skin_path: "",

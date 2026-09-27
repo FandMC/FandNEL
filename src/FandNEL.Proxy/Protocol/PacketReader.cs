@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using FandNEL.Proxy.Protocol.Nbt;
 
 namespace FandNEL.Proxy.Protocol;
 
@@ -55,6 +56,10 @@ public sealed class PacketReader(ReadOnlyMemory<byte> payload)
             throw new InvalidDataException($"字节数组长度非法：{length}。");
         return ReadBytes(length);
     }
+
+    public NbtTag ReadNbt(NbtLimits? limits = null, bool requireEnd = false) { var start = Position; var tag = NbtCodec.Read(payload[Position..], limits, requireEnd); Position = payload.Length; return tag; }
+
+    public NbtCompound ReadNetworkNbtCompound(NbtLimits? limits = null) => NbtCodec.ReadNetworkCompound(this, limits);
 
     public string ReadString(int maximumLength = 32767)
     {

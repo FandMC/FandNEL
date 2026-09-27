@@ -8,7 +8,6 @@ public sealed record JavaLaunchRequest
 {
     public required string UserId { get; init; }
     public required string UserToken { get; init; }
-    public required string AccessToken { get; init; }
     public required string GameId { get; init; }
     public required string RoleName { get; init; }
     public required EnumGameVersion GameVersion { get; init; }
@@ -25,7 +24,6 @@ public sealed record JavaLaunchRequest
         if (!uint.TryParse(UserId, out _))
             throw new ArgumentException("用户 ID 必须是无符号整数。", nameof(UserId));
         ArgumentException.ThrowIfNullOrWhiteSpace(UserToken);
-        ArgumentException.ThrowIfNullOrWhiteSpace(AccessToken);
         ArgumentException.ThrowIfNullOrWhiteSpace(GameId);
         ArgumentException.ThrowIfNullOrWhiteSpace(RoleName);
         ArgumentException.ThrowIfNullOrWhiteSpace(ServerHost);

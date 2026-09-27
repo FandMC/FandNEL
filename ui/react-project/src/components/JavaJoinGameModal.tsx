@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth, useGateway, useToasts } from "../context/AppContext";
+import { useGateway, useToasts } from "../context/AppContext";
 import { generateRandomNickname } from "../lib/randomNickname";
 import { readGatewaySettings, writeGatewaySettings, type GatewaySettings } from "../lib/settingsStorage";
 import type { GatewayMessage } from "../types";
@@ -187,7 +187,6 @@ export function JavaJoinGameModal({
 }) {
   const gateway = useGateway();
   const navigate = useNavigate();
-  const { user, getAccessToken } = useAuth();
   const { notify } = useToasts();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
@@ -290,14 +289,6 @@ export function JavaJoinGameModal({
   const launchGame = async () => {
     if (!selectedAccount || !selectedRole) return;
     setLaunching(true);
-    let accessToken: string;
-    try {
-      accessToken = await getAccessToken();
-    } catch {
-      setLaunching(false);
-      navigate("/gateway");
-      return;
-    }
     try {
       await gateway.send("launch_game", {
         user_id: value(selectedAccount, "id"),
@@ -310,7 +301,6 @@ export function JavaJoinGameModal({
         game_version: version.name,
         server_ip: address,
         server_port: port,
-        access_token: accessToken,
         max_game_memory: Number(settings.jvmMaxMemory),
         load_core_mods: settings.loadCoreModules,
       });
@@ -325,14 +315,6 @@ export function JavaJoinGameModal({
   const launchInterceptor = async () => {
     if (!selectedAccount || !selectedRole) return;
     setJoining(true);
-    let accessToken: string;
-    try {
-      accessToken = await getAccessToken();
-    } catch {
-      setJoining(false);
-      navigate("/gateway");
-      return;
-    }
     try {
       joinRequestIdentifyRef.current = await gateway.send("join_game", {
         id: value(selectedAccount, "id"),
@@ -343,8 +325,6 @@ export function JavaJoinGameModal({
         version: version.name,
         ip: address,
         port,
-        nid: user?.id ?? "",
-        token: accessToken,
         socks5: socks5Payload(),
       });
     } catch (error) {

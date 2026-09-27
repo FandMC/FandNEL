@@ -10,5 +10,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../../src/FandNEL/FandNEL.csproj" />
+    <ProjectReference Include="../../src/FandNEL.Proxy/FandNEL.Proxy.csproj" />
   </ItemGroup>
 </Project>

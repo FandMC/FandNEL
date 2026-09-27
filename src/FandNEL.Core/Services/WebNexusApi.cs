@@ -129,7 +129,7 @@ public sealed class WebNexusApi : IDisposable
     {
         using var response = await _client.SendAsync(request, cancellationToken).ConfigureAwait(false);
         var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-        Log.Information("Codexus request {Method} {Endpoint} returned HTTP {StatusCode} (bodyLength={BodyLength})", request.Method, request.RequestUri?.AbsolutePath, (int)response.StatusCode, body.Length);
+        Log.Debug("Codexus request {Method} {Endpoint} returned HTTP {StatusCode} (bodyLength={BodyLength})", request.Method, request.RequestUri?.AbsolutePath, (int)response.StatusCode, body.Length);
         EnsureSuccess(response, body);
         return body;
     }

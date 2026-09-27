@@ -33,7 +33,6 @@ interface AuthContextValue {
   loginPasskey(email: string): Promise<void>;
   refreshSession(): Promise<void>;
   logout(): Promise<void>;
-  getAccessToken(): Promise<string>;
   updateUser(user: UserProfile): void;
 }
 
@@ -113,7 +112,6 @@ function AuthProvider({ children }: { children: ReactNode }) {
   const webAuthnStatus = useCallback(async (_email: string): Promise<WebAuthnStatus> => ({ hasWebAuthn: false, isEnabled: false }), []);
   const loginPasskey = useCallback(async (_email: string) => undefined, []);
   const refreshSession = useCallback(async () => undefined, []);
-  const getAccessToken = useCallback(async () => "", []);
 
   const logout = useCallback(async () => {
     logoutLegacySession();
@@ -134,10 +132,9 @@ function AuthProvider({ children }: { children: ReactNode }) {
       loginPasskey,
       refreshSession,
       logout,
-      getAccessToken,
       updateUser,
     }),
-    [session, loading, checkEmail, login, register, loginPrivateKey, webAuthnStatus, loginPasskey, refreshSession, logout, getAccessToken, updateUser],
+    [session, loading, checkEmail, login, register, loginPrivateKey, webAuthnStatus, loginPasskey, refreshSession, logout, updateUser],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

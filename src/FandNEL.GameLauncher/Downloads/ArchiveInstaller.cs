@@ -53,13 +53,35 @@ internal sealed class ArchiveInstaller(HttpClient http)
             }
             if (!string.IsNullOrEmpty(md5) && !await MatchesAsync(temporary, md5, cancellationToken).ConfigureAwait(false))
                 throw new InvalidDataException($"资源 MD5 校验失败：{Path.GetFileName(destination)}");
-            File.Move(temporary, destination, overwrite: true);
+            ReplaceDownloadedFile(temporary, destination);
         }
         finally
         {
             if (File.Exists(temporary))
                 File.Delete(temporary);
         }
+    }
+
+    private static void ReplaceDownloadedFile(string temporary, string destination)
+    {
+        if (File.Exists(destination))
+        {
+            // 旧版本的下载产物可能被解压工具标记为只读；清除属性后再替换。
+            File.SetAttributes(destination, FileAttributes.Normal);
+            try
+            {
+                File.Move(temporary, destination, overwrite: true);
+                return;
+            }
+            catch (IOException)
+            {
+                // 某些 Windows 文件系统对 overwrite 的行为取决于目标文件属性，
+                // 删除后重命名可以保持替换语义，同时仍会把真正的文件锁错误抛出。
+            }
+        }
+
+        if (File.Exists(destination)) File.Delete(destination);
+        File.Move(temporary, destination);
     }
 
     public static Task ExtractAsync(string archivePath, string destination, IProgress<LaunchProgress>? progress, CancellationToken cancellationToken) =>

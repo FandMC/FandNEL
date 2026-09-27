@@ -5,6 +5,7 @@ using FandNEL.Gateway;
 using FandNEL.Gateway.Management;
 using FandNEL.UI;
 using Serilog;
+using Serilog.Events;
 
 namespace FandNEL;
 
@@ -72,8 +73,8 @@ internal static class Program
         var logDirectory = Path.Combine(baseDirectory, "logs");
         Directory.CreateDirectory(logDirectory);
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Information()
-            .WriteTo.Console()
+            .MinimumLevel.Debug()
+            .WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information)
             .WriteTo.File(Path.Combine(logDirectory, "fandnel-.log"), rollingInterval: RollingInterval.Day)
             .CreateLogger();
     }

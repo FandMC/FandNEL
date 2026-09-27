@@ -59,7 +59,7 @@ public sealed class MinecraftConnection
 
     internal async Task PrepareAsync(CancellationToken cancellationToken)
     {
-        Log.Information("Proxy connection {ConnectionId}: connecting to {TargetHost}:{TargetPort} (client={ClientAddress})", Id, Target.Host, Target.Port, _client.RemoteAddress);
+            Log.Debug("Proxy connection {ConnectionId}: connecting to {TargetHost}:{TargetPort} (client={ClientAddress})", Id, Target.Host, Target.Port, _client.RemoteAddress);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _connectionLifetime.Token);
         timeout.CancelAfter(_options.ConnectTimeout);
         Socks5ClientHandler? socksHandler = null;
@@ -88,7 +88,7 @@ public sealed class MinecraftConnection
                 : new DnsEndPoint(Target.Host, Target.Port);
             connectOperation = bootstrap.ConnectAsync(endpoint);
             ServerChannel = await connectOperation.WaitAsync(timeout.Token).ConfigureAwait(false);
-            Log.Information("Proxy connection {ConnectionId}: target TCP connected (server={ServerAddress})", Id, ServerChannel.RemoteAddress);
+            Log.Debug("Proxy connection {ConnectionId}: target TCP connected (server={ServerAddress})", Id, ServerChannel.RemoteAddress);
             if (socksHandler is not null)
             {
                 await socksHandler.Completed.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -195,7 +195,7 @@ public sealed class MinecraftConnection
         var secret = RandomNumberGenerator.GetBytes(16);
         try
         {
-            Log.Information("Proxy connection {ConnectionId}: Minecraft authentication started (version={Version}, serverIdLength={ServerIdLength}, authenticate={Authenticate})", Id, Version, serverId.Length, shouldAuthenticate);
+            Log.Debug("Proxy connection {ConnectionId}: Minecraft authentication started (version={Version}, serverIdLength={ServerIdLength}, authenticate={Authenticate})", Id, Version, serverId.Length, shouldAuthenticate);
             var authenticate = _options.JoinServerAsync ?? throw new InvalidOperationException("当前通道未绑定 Codexus 远程进服认证服务。");
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
             hash.AppendData(Encoding.Latin1.GetBytes(serverId));
@@ -204,7 +204,7 @@ public sealed class MinecraftConnection
             var signedHash = new BigInteger(hash.GetHashAndReset(), isUnsigned: false, isBigEndian: true);
             var certification = (signedHash.Sign < 0 ? "-" : string.Empty) + BigInteger.Abs(signedHash).ToString("x").TrimStart('0');
             await authenticate(certification.Length == 0 ? "0" : certification, cancellationToken).ConfigureAwait(false);
-            Log.Information("Proxy connection {ConnectionId}: remote authentication accepted", Id);
+            Log.Debug("Proxy connection {ConnectionId}: remote authentication accepted", Id);
             using var rsa = RSA.Create();
             rsa.ImportSubjectPublicKeyInfo(publicKey, out _);
             var encryptedSecret = rsa.Encrypt(secret, RSAEncryptionPadding.Pkcs1);
