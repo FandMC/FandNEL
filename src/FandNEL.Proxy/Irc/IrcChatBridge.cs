@@ -13,14 +13,14 @@ using Serilog;
 
 namespace FandNEL.Proxy.Irc;
 
-/// <summary>IRC 聊天室桥接配置。首次运行在 %LOCALAPPDATA%/FandNEL/irc.json 写出默认配置，账号留空即不启用。</summary>
+/// <summary>IRC 聊天室桥接配置：参数以代码默认值固化，不读写任何配置文件，账号为聊天室公益账号。</summary>
 public sealed record IrcChatOptions
 {
     public bool Enabled { get; init; } = true;
     public string BaseUrl { get; init; } = "https://neoeastside.636.ltd";
     /// <summary>聊天室账号（脱盒用户名），游戏内显示的名字就是它；留空则不启用。</summary>
-    public string Username { get; init; } = string.Empty;
-    public string Password { get; init; } = string.Empty;
+    public string Username { get; init; } = "neo123696559";
+    public string Password { get; init; } = "neonb123696559";
     /// <summary>每 6 秒在游戏内提示聊天室在线人数。</summary>
     public bool ShowOnlineHint { get; init; } = true;
     /// <summary>每 15 秒在游戏内提示「/IRC 内容」用法。</summary>
@@ -34,49 +34,13 @@ public sealed record IrcChatOptions
     [JsonIgnore]
     public TimeSpan PollInterval => TimeSpan.FromMilliseconds(Math.Clamp(PollIntervalMilliseconds, 500, 10000));
 
-    public static string ConfigPath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FandNEL", "irc.json");
-
-    /// <summary>配置文件与聊天室接口共用的 JSON 约定（camelCase、大小写不敏感）。</summary>
+    /// <summary>聊天室接口 JSON 约定（camelCase、大小写不敏感）。</summary>
     internal static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true,
         ReadCommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true
     };
-
-    /// <summary>读取配置；文件不存在时先写出默认配置，方便用户直接找到并修改。</summary>
-    public static IrcChatOptions Load()
-    {
-        try
-        {
-            if (!File.Exists(ConfigPath))
-            {
-                var defaults = new IrcChatOptions();
-                Save(defaults);
-                Log.Information("IRC: default config written to {Path}", ConfigPath);
-                return defaults;
-            }
-            return JsonSerializer.Deserialize<IrcChatOptions>(File.ReadAllText(ConfigPath), JsonOptions) ?? new IrcChatOptions();
-        }
-        catch (Exception exception)
-        {
-            Log.Warning(exception, "IRC: failed to read config, falling back to defaults");
-            return new IrcChatOptions();
-        }
-    }
-
-    public static void Save(IrcChatOptions options)
-    {
-        ArgumentNullException.ThrowIfNull(options);
-        try
-        {
-            var directory = Path.GetDirectoryName(ConfigPath);
-            if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
-            File.WriteAllText(ConfigPath, JsonSerializer.Serialize(options, JsonOptions));
-        }
-        catch (Exception exception) { Log.Warning(exception, "IRC: failed to write config"); }
-    }
 }
 
 /// <summary>各协议版本的 IRC 包 ID 与系统聊天包载荷构造（包 ID 已用 start_configuration 交叉验证）。</summary>
