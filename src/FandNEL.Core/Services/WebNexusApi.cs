@@ -3,6 +3,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FandNEL.Core.Entities;
+using Serilog;
 
 namespace FandNEL.Core.Services;
 
@@ -127,14 +128,37 @@ public sealed class WebNexusApi : IDisposable
     private async Task<string> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         using var response = await _client.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        EnsureSuccess(response);
-        return await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        Log.Information("Codexus request {Method} {Endpoint} returned HTTP {StatusCode} (bodyLength={BodyLength})", request.Method, request.RequestUri?.AbsolutePath, (int)response.StatusCode, body.Length);
+        EnsureSuccess(response, body);
+        return body;
     }
 
-    private static void EnsureSuccess(HttpResponseMessage response)
+    private static void EnsureSuccess(HttpResponseMessage response, string? body = null)
     {
         if (!response.IsSuccessStatusCode)
-            throw new HttpRequestException($"Codexus 服务请求失败（HTTP {(int)response.StatusCode}）。", null, response.StatusCode);
+        {
+            var detail = ExtractErrorMessage(body);
+            var message = string.IsNullOrWhiteSpace(detail)
+                ? $"Codexus 服务请求失败（HTTP {(int)response.StatusCode}）。"
+                : $"Codexus 服务请求失败（HTTP {(int)response.StatusCode}）：{detail}";
+            throw new HttpRequestException(message, null, response.StatusCode);
+        }
+    }
+
+    private static string? ExtractErrorMessage(string? body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return null;
+        try
+        {
+            using var document = JsonDocument.Parse(body);
+            var root = document.RootElement;
+            foreach (var name in new[] { "message", "error", "detail", "title" })
+                if (root.TryGetProperty(name, out var property) && property.ValueKind == JsonValueKind.String)
+                    return property.GetString();
+        }
+        catch (JsonException) { }
+        return body.Length <= 512 ? body : body[..512];
     }
 
     private static T Deserialize<T>(string json) => JsonSerializer.Deserialize<T>(json)

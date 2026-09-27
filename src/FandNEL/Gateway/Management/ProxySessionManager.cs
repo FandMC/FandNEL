@@ -63,6 +63,8 @@ public sealed class ProxySessionManager : IAsyncDisposable
     private void OnSessionEvent(object? sender, ProxyEventArgs args)
     {
         var value = args.Value;
+        if (value.Kind == ProxyEventKind.ConnectionFailed)
+            _events?.Publish(GatewayEventKind.ProxyConnectionFailed, value.SessionId.ToString(), value.Message);
         if (value.Kind is ProxyEventKind.Stopped or ProxyEventKind.Faulted)
         {
             if (_sessions.TryRemove(value.SessionId, out var session))

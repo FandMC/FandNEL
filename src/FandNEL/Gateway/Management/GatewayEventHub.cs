@@ -9,6 +9,7 @@ public enum GatewayEventKind
     TokenUpdated,
     TokenExpired,
     ProxyStarted,
+    ProxyConnectionFailed,
     ProxyStopped,
     ProxyFaulted,
     LauncherStarted,

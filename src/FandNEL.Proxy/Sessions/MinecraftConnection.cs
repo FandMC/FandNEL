@@ -4,12 +4,14 @@ using System.Net.Sockets;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using DotNetty.Buffers;
 using DotNetty.Transport.Bootstrapping;
 using DotNetty.Transport.Channels;
 using DotNetty.Transport.Channels.Sockets;
 using FandNEL.Proxy.Models;
 using FandNEL.Proxy.Protocol;
+using Serilog;
 
 namespace FandNEL.Proxy.Sessions;
 
@@ -57,6 +59,7 @@ public sealed class MinecraftConnection
 
     internal async Task PrepareAsync(CancellationToken cancellationToken)
     {
+        Log.Information("Proxy connection {ConnectionId}: connecting to {TargetHost}:{TargetPort} (client={ClientAddress})", Id, Target.Host, Target.Port, _client.RemoteAddress);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _connectionLifetime.Token);
         timeout.CancelAfter(_options.ConnectTimeout);
         Socks5ClientHandler? socksHandler = null;
@@ -85,6 +88,7 @@ public sealed class MinecraftConnection
                 : new DnsEndPoint(Target.Host, Target.Port);
             connectOperation = bootstrap.ConnectAsync(endpoint);
             ServerChannel = await connectOperation.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Log.Information("Proxy connection {ConnectionId}: target TCP connected (server={ServerAddress})", Id, ServerChannel.RemoteAddress);
             if (socksHandler is not null)
             {
                 await socksHandler.Completed.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -156,7 +160,10 @@ public sealed class MinecraftConnection
 
     internal void EnableServerCompression(int threshold) => ConfigureCompression(ServerChannel, threshold);
 
-    internal void EnableClientCompression(int threshold) => ConfigureCompression(_client, threshold);
+    internal void EnableClientCompression(int threshold)
+    {
+        ConfigureCompression(_client, threshold);
+    }
 
     internal IChannel GetDestination(PacketDirection direction) =>
         direction == PacketDirection.ServerBound
@@ -188,6 +195,7 @@ public sealed class MinecraftConnection
         var secret = RandomNumberGenerator.GetBytes(16);
         try
         {
+            Log.Information("Proxy connection {ConnectionId}: Minecraft authentication started (version={Version}, serverIdLength={ServerIdLength}, authenticate={Authenticate})", Id, Version, serverId.Length, shouldAuthenticate);
             var authenticate = _options.JoinServerAsync ?? throw new InvalidOperationException("当前通道未绑定 Codexus 远程进服认证服务。");
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA1);
             hash.AppendData(Encoding.Latin1.GetBytes(serverId));
@@ -196,6 +204,7 @@ public sealed class MinecraftConnection
             var signedHash = new BigInteger(hash.GetHashAndReset(), isUnsigned: false, isBigEndian: true);
             var certification = (signedHash.Sign < 0 ? "-" : string.Empty) + BigInteger.Abs(signedHash).ToString("x").TrimStart('0');
             await authenticate(certification.Length == 0 ? "0" : certification, cancellationToken).ConfigureAwait(false);
+            Log.Information("Proxy connection {ConnectionId}: remote authentication accepted", Id);
             using var rsa = RSA.Create();
             rsa.ImportSubjectPublicKeyInfo(publicKey, out _);
             var encryptedSecret = rsa.Encrypt(secret, RSAEncryptionPadding.Pkcs1);
@@ -234,8 +243,53 @@ public sealed class MinecraftConnection
         if (Volatile.Read(ref _closed) != 0)
             return Task.CompletedTask;
         if (Interlocked.Exchange(ref _failureReported, 1) == 0)
+        {
+            Log.Error(exception, "Proxy connection {ConnectionId}: failed (clientState={ClientState}, serverState={ServerState}, version={Version})", Id, ClientState, ServerState, Version);
             _onFailed(exception);
-        return CloseAsync();
+        }
+        return FailAndCloseAsync(exception);
+    }
+
+    private async Task FailAndCloseAsync(Exception exception)
+    {
+        try
+        {
+            if (ClientState == ConnectionState.Login && _client.Active)
+            {
+                var message = GetClientErrorMessage(exception);
+                Log.Information("Proxy connection {ConnectionId}: sending login disconnect to client: {Reason}", Id, message);
+                using var writer = new PacketWriter();
+                writer.WriteString(JsonSerializer.Serialize(new { text = message }));
+                await SendAsync(PacketDirection.ClientBound, GetLoginDisconnectPacketId(), writer.ToArray()).ConfigureAwait(false);
+            }
+        }
+        catch (Exception sendException)
+        {
+            Log.Error(sendException, "Proxy connection {ConnectionId}: failed to send login disconnect", Id);
+            _onFailed(new IOException($"发送登录失败原因时连接已关闭：{sendException.Message}", sendException));
+        }
+        finally
+        {
+            Log.Information("Proxy connection {ConnectionId}: closing client and target channels", Id);
+            await CloseAsync().ConfigureAwait(false);
+        }
+    }
+
+    private int GetLoginDisconnectPacketId() => Version switch
+    {
+        // 1.13-pre3 through 1.13-pre5 temporarily shifted login packet IDs.
+        // These snapshots are not represented by the supported protocol enum.
+        _ => 0
+    };
+
+
+    private static string GetClientErrorMessage(Exception exception)
+    {
+        var message = exception is HttpRequestException http && !string.IsNullOrWhiteSpace(http.Message)
+            ? http.Message
+            : exception.Message;
+        message = message.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        return message.Length <= 512 ? message : message[..512];
     }
 }
 
