@@ -977,7 +977,7 @@ function BedrockRentalBrowser() {
           </div>
         </div>
       ) : null}
-      {loading ? <div className="bedrock-rental-loading">正在加载服务器…</div> : error ? <div className="bedrock-rental-empty" role="alert"><h3>无法加载服务器</h3><p>{error}</p><button type="button" onClick={() => { setLoading(true); setError(""); void gateway.send("pe_rental_games", { offset: (page - 1) * 30 }).catch((requestError) => { setError(requestError instanceof Error ? requestError.message : "无法加载服务器。"); setLoading(false); }); }}>重试</button></div> : (
+      {loading ? <div className="bedrock-rental-loading">正在加载服务器…</div> : error ? <div className="server-list-error" role="alert">{error}<button type="button" onClick={() => { setLoading(true); setError(""); void gateway.send("pe_rental_games", { offset: (page - 1) * 30 }).catch((requestError) => { setError(requestError instanceof Error ? requestError.message : "无法加载服务器。"); setLoading(false); }); }}>重试</button></div> : (
         <div className="bedrock-rental-table-wrap">
           <div className="bedrock-rental-table" role="table" aria-label="基岩版租赁服">
             <div className="bedrock-rental-row header" role="row"><span>服务器</span><span>玩家</span><span>版本</span><span>点赞</span><span>状态</span><span>操作</span></div>
@@ -999,7 +999,7 @@ function BedrockRentalBrowser() {
           </div>
         </div>
       )}
-      {!loading && visibleServers.length === 0 ? <div className="bedrock-rental-empty"><Search /><h3>未找到服务器</h3><p>{query ? `没有与“${query}”匹配的服务器，请尝试调整搜索条件。` : "当前没有可用服务器。"}</p></div> : null}
+      {!loading && !error && visibleServers.length === 0 ? <div className="bedrock-rental-empty"><Search /><h3>未找到服务器</h3><p>{query ? `没有与“${query}”匹配的服务器，请尝试调整搜索条件。` : "当前没有可用服务器。"}</p></div> : null}
       {passwordTarget ? (
         <PasswordDialog
           name={passwordTarget.name}
