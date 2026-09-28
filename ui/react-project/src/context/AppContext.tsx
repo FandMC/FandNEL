@@ -221,13 +221,13 @@ function GatewayProvider({ children }: { children: ReactNode }) {
     async (type: string, payload: unknown = "", identify = createGatewayIdentify()) => {
       const socket = socketRef.current;
       if (!socket || socket.readyState !== WebSocket.OPEN) {
-        throw new Error("Gateway is not connected.");
+        throw new Error("尚未连接网关。");
       }
       const gatewayMessage = await createGatewayMessage(type, payload, identify);
       const message = JSON.stringify(gatewayMessage);
       const sessionKey = sessionKeyRef.current;
       if (socketRef.current !== socket || socket.readyState !== WebSocket.OPEN) {
-        throw new Error("Gateway connection was replaced.");
+        throw new Error("网关连接已切换。");
       }
       if (!sessionKey) {
         socket.send(message);
@@ -239,7 +239,7 @@ function GatewayProvider({ children }: { children: ReactNode }) {
           new TextEncoder().encode(message),
         );
         if (socketRef.current !== socket || socket.readyState !== WebSocket.OPEN) {
-          throw new Error("Gateway connection was replaced.");
+          throw new Error("网关连接已切换。");
         }
         const combined = new Uint8Array(16 + encrypted.byteLength);
         combined.set(iv);
@@ -270,7 +270,7 @@ function GatewayProvider({ children }: { children: ReactNode }) {
     sessionKeyRef.current = null;
     stopDiscovery();
     if (socket && socket.readyState < WebSocket.CLOSING) socket.close();
-    pendingReject?.(new Error("Gateway connection attempt superseded."));
+    pendingReject?.(new Error("网关连接请求已被新的请求替代。"));
     setStatus(nextStatus);
   }, [stopDiscovery]);
 
@@ -280,13 +280,13 @@ function GatewayProvider({ children }: { children: ReactNode }) {
 
   const connect = useCallback(
     async (candidate = url) => {
-      if (!candidate) throw new Error("Enter a gateway WebSocket URL.");
+      if (!candidate) throw new Error("请输入网关的 WebSocket 地址。");
       invalidateConnection("idle");
       const generation = connectionGenerationRef.current;
       setStatus("connecting");
       setError(null);
       setUrl(candidate);
-      addLog(`Connecting to ${candidate}`);
+      addLog(`正在连接 ${candidate}`);
 
       const keyPair = (await crypto.subtle.generateKey(
         { name: "ECDH", namedCurve: "P-256" },
@@ -294,7 +294,7 @@ function GatewayProvider({ children }: { children: ReactNode }) {
         ["deriveBits"],
       )) as CryptoKeyPair;
       if (generation !== connectionGenerationRef.current) {
-        throw new Error("Gateway connection attempt superseded.");
+        throw new Error("网关连接请求已被新的请求替代。");
       }
       keyPairRef.current = keyPair;
 
@@ -304,7 +304,7 @@ function GatewayProvider({ children }: { children: ReactNode }) {
         socket.binaryType = "arraybuffer";
         if (generation !== connectionGenerationRef.current) {
           socket.close();
-          reject(new Error("Gateway connection attempt superseded."));
+          reject(new Error("网关连接请求已被新的请求替代。"));
           return;
         }
         socketRef.current = socket;
@@ -325,7 +325,7 @@ function GatewayProvider({ children }: { children: ReactNode }) {
         pendingConnectionRejectRef.current = rejectConnection;
         timeout = window.setTimeout(() => {
           if (socketRef.current !== socket || generation !== connectionGenerationRef.current) return;
-          rejectConnection(new Error("Gateway handshake timed out."));
+          rejectConnection(new Error("网关握手超时。"));
         }, 8_000);
 
         socket.onopen = async () => {
@@ -378,32 +378,32 @@ function GatewayProvider({ children }: { children: ReactNode }) {
               setLastConnectedUrlState(candidate);
               setCurrentSessionConnectedState(true);
               persistGatewayState(candidate, true);
-              addLog("Gateway handshake completed", "success");
+              addLog("网关握手完成", "success");
               resolveConnection();
             }
             setMessages((current) => [...current.slice(-199), message]);
           } catch (messageError) {
             if (isCurrent()) {
-              addLog(messageError instanceof Error ? messageError.message : "Invalid gateway message", "error");
+              addLog(messageError instanceof Error ? messageError.message : "网关消息格式无效", "error");
               rejectConnection(messageError);
             }
           }
         };
         socket.onerror = () => {
-          if (isCurrent()) rejectConnection(new Error("Unable to connect to the gateway."));
+          if (isCurrent()) rejectConnection(new Error("无法连接网关。"));
         };
         socket.onclose = () => {
           if (!isCurrent()) return;
           sessionKeyRef.current = null;
           if (!settled) {
-            rejectConnection(new Error("Gateway connection closed before handshake."));
+            rejectConnection(new Error("网关在握手完成前断开了连接。"));
             return;
           }
           setStatus("idle");
-          addLog("Gateway disconnected", "warning");
+          addLog("网关连接已断开", "warning");
         };
       }).catch((connectError: unknown) => {
-        const message = connectError instanceof Error ? connectError.message : "Gateway connection failed.";
+        const message = connectError instanceof Error ? connectError.message : "网关连接失败。";
         if (generation === connectionGenerationRef.current) {
           setError(message);
           invalidateConnection("error");
@@ -461,13 +461,13 @@ function GatewayProvider({ children }: { children: ReactNode }) {
     });
     try {
       const discovered = await Promise.any(probes);
-      if (generation !== discoveryGenerationRef.current) throw new Error("Gateway discovery superseded.");
+      if (generation !== discoveryGenerationRef.current) throw new Error("网关搜索已被新的请求替代。");
       setUrl(discovered);
       setStatus("idle");
       return discovered;
     } catch {
       if (generation === discoveryGenerationRef.current) setStatus("idle");
-      throw new Error("No local gateway was discovered on ports 19541-19560.");
+      throw new Error("未在端口 19541–19560 上发现本地网关。");
     } finally {
       for (const socket of localProbeSockets) {
         discoverySocketsRef.current.delete(socket);
@@ -478,7 +478,7 @@ function GatewayProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => () => {
     connectionGenerationRef.current += 1;
-    pendingConnectionRejectRef.current?.(new Error("Gateway provider unmounted."));
+    pendingConnectionRejectRef.current?.(new Error("网关连接组件已卸载。"));
     pendingConnectionRejectRef.current = null;
     socketRef.current?.close();
     socketRef.current = null;

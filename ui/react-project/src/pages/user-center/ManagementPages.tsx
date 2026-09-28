@@ -29,6 +29,16 @@ interface ModRecord {
   path: string;
 }
 
+function sessionStatusLabel(status: string): string {
+  switch (status) {
+    case "Running": return "运行中";
+    case "Failed": return "失败";
+    case "Stopping": return "正在停止";
+    case "Stopped": return "已停止";
+    default: return status;
+  }
+}
+
 function Intro({ title, description }: { title: string; description: string }) {
   return <section className="management-v253-intro"><h1>{title}</h1><p>{description}</p></section>;
 }
@@ -57,9 +67,9 @@ export function LaunchersPage() {
 
   return (
     <main className="workspace-page management-page management-v253-page">
-      <Intro title="Game Management" description="Oversee and manage all currently active game server instances." />
-      <ManagementCard title={`Active Sessions (${items.length})`}>
-        {loading ? <div className="management-v253-loading">Fetching active sessions...</div> : error ? <div className="management-v253-empty" role="alert"><h3>Unable to load active sessions</h3><p>{error}</p><button className="management-outline-button" type="button" onClick={() => void refresh()}>Retry</button></div> : items.length ? items.map((game) => (
+      <Intro title="游戏管理" description="查看并管理当前所有活动游戏会话。" />
+      <ManagementCard title={`活动会话（${items.length}）`}>
+        {loading ? <div className="management-v253-loading">正在获取活动会话...</div> : error ? <div className="management-v253-empty" role="alert"><h3>无法加载活动会话</h3><p>{error}</p><button className="management-outline-button" type="button" onClick={() => void refresh()}>重试</button></div> : items.length ? items.map((game) => (
           <div
             className={game.game_type === "Java" && game.type === "Interceptor" ? "game-session-row configurable-game-session" : "game-session-row"}
             key={game.id}
@@ -70,20 +80,20 @@ export function LaunchersPage() {
             <div className="game-session-main">
               <div><h3>{game.server_name}</h3><span>{game.server_version}</span></div>
               <small>{game.guid}</small>
-              {game.status_text !== "Running" ? <div className="game-progress"><p><span>Launching...</span><span>{game.progress_value}%</span></p><i><b style={{ width: `${game.progress_value}%` }} /></i></div> : null}
+              {game.status_text !== "Running" ? <div className="game-progress"><p><span>正在启动...</span><span>{game.progress_value}%</span></p><i><b style={{ width: `${game.progress_value}%` }} /></i></div> : null}
               <em>{game.character_name}</em>
             </div>
-            <div className="game-session-character"><small>Character</small><strong>{game.character_name}</strong></div>
+            <div className="game-session-character"><small>角色</small><strong>{game.character_name}</strong></div>
             <div className="game-session-actions">
-              <span className={game.status_text === "Running" ? "running" : "launching"}>{game.status_text}</span>
+              <span className={game.status_text === "Running" ? "running" : "launching"}>{sessionStatusLabel(game.status_text)}</span>
               <div>
-                {game.status_text === "Running" && game.type === "Interceptor" ? <button type="button" title="Copy Address" onClick={(event) => { event.stopPropagation(); void navigator.clipboard.writeText(game.local_address); }}><Copy /></button> : null}
-                {game.status_text === "Running" ? <button className="stop" type="button" onClick={(event) => { event.stopPropagation(); void gateway.send("cancel_game_session", [game.guid]); }}>Stop</button> : null}
-                {game.type === "ModDownload" ? <button className="stop" type="button" onClick={(event) => { event.stopPropagation(); void gateway.send("cancel_game_session", [game.guid]); }}>Cancel</button> : null}
+                {game.status_text === "Running" && game.type === "Interceptor" ? <button type="button" title="复制地址" onClick={(event) => { event.stopPropagation(); void navigator.clipboard.writeText(game.local_address); }}><Copy /></button> : null}
+                {game.status_text === "Running" ? <button className="stop" type="button" onClick={(event) => { event.stopPropagation(); void gateway.send("cancel_game_session", [game.guid]); }}>停止</button> : null}
+                {game.type === "ModDownload" ? <button className="stop" type="button" onClick={(event) => { event.stopPropagation(); void gateway.send("cancel_game_session", [game.guid]); }}>取消</button> : null}
               </div>
             </div>
           </div>
-        )) : <div className="management-v253-empty"><span><FlaskConical /></span><h3>No active sessions</h3><p>Start a game to see it listed here.</p></div>}
+        )) : <div className="management-v253-empty"><span><FlaskConical /></span><h3>暂无活动会话</h3><p>启动游戏后，会话将显示在此处。</p></div>}
       </ManagementCard>
     </main>
   );
@@ -106,23 +116,23 @@ export function ModsPage() {
       const payload = await Promise.all(Array.from(files).map(async (file) => ({ file_name: file.name, base64: await fileToBase64(file) })));
       await gateway.send("add_mods", payload);
     } catch (error) {
-      notify(error instanceof Error ? error.message : "Unable to add mod.", "error");
+      notify(error instanceof Error ? error.message : "无法添加模组。", "error");
     }
   };
 
   return (
     <main className="workspace-page management-page management-v253-page">
-      <Intro title="Mods Management" description="Install and manage game modifications (.jar files)." />
+      <Intro title="模组管理" description="安装并管理游戏模组（.jar 文件）。" />
       <ManagementCard
-        title={`Installed Mods (${items.length})`}
-        actions={<><button className="management-outline-button" type="button" onClick={() => void gateway.send("open_folder", "resources:mods")}><FolderOpen />Open Folder</button><label className="management-primary-button" htmlFor="mod-file-upload"><Plus />Add Mod</label><input id="mod-file-upload" className="management-file-input" type="file" accept=".jar" multiple onChange={(event) => void addMod(event.target.files).finally(() => { event.target.value = ""; })} /></>}
+        title={`已安装模组（${items.length}）`}
+        actions={<><button className="management-outline-button" type="button" onClick={() => void gateway.send("open_folder", "resources:mods")}><FolderOpen />打开文件夹</button><label className="management-primary-button" htmlFor="mod-file-upload"><Plus />添加模组</label><input id="mod-file-upload" className="management-file-input" type="file" accept=".jar" multiple onChange={(event) => void addMod(event.target.files).finally(() => { event.target.value = ""; })} /></>}
       >
-        {loading ? <div className="management-v253-loading">Loading mods list...</div> : items.length ? items.map((mod, index) => (
+        {loading ? <div className="management-v253-loading">正在加载模组列表...</div> : items.length ? items.map((mod, index) => (
           <div className="mod-v253-row" key={`${mod.path}_${index}`}>
             <div><strong title={mod.path}>{mod.path.split(/[/\\]/).pop() || mod.path}</strong><small title={mod.path}>{mod.path}</small></div>
-            <button type="button" title="Delete Mod" onClick={() => { if (window.confirm("Are you sure you want to delete this mod? This action cannot be undone.")) void gateway.send("delete_mod", mod.path); }}><Trash2 /></button>
+            <button type="button" title="删除模组" onClick={() => { if (window.confirm("确定要删除此模组吗？此操作无法撤销。")) void gateway.send("delete_mod", mod.path); }}><Trash2 /></button>
           </div>
-        )) : <div className="management-v253-empty"><span><PackageOpen /></span><h3>No mods installed</h3><p>Click &quot;Add Mod&quot; to upload .jar files.</p></div>}
+        )) : <div className="management-v253-empty"><span><PackageOpen /></span><h3>尚未安装模组</h3><p>点击“添加模组”上传 .jar 文件。</p></div>}
       </ManagementCard>
     </main>
   );
@@ -148,13 +158,13 @@ export function ConsolePage() {
     URL.revokeObjectURL(url);
   };
 
-  return <div className="workspace-page console-page"><section className="console-header"><div><h1>Console</h1><p>System logs and terminal output</p></div><div><button type="button" onClick={gateway.clearLogs}><Trash2 />Clear</button><button type="button" onClick={download}><Download />Download</button></div></section><section className="console-output" ref={outputRef}>{gateway.logs.map((entry) => <div key={entry.id}><time>[{new Date(entry.timestamp).toLocaleTimeString()}]</time><b className={`log-${entry.type}`}>{logLabel(entry.type)}</b><span>{entry.content}</span></div>)}</section></div>;
+  return <div className="workspace-page console-page"><section className="console-header"><div><h1>控制台</h1><p>系统日志与终端输出</p></div><div><button type="button" onClick={gateway.clearLogs}><Trash2 />清空</button><button type="button" onClick={download}><Download />下载</button></div></section><section className="console-output" ref={outputRef}>{gateway.logs.map((entry) => <div key={entry.id}><time>[{new Date(entry.timestamp).toLocaleTimeString()}]</time><b className={`log-${entry.type}`}>{logLabel(entry.type)}</b><span>{entry.content}</span></div>)}</section></div>;
 }
 
 function logLabel(type: string): string {
-  if (type === "error") return "ERR!";
-  if (type === "warning") return "WARN";
-  if (type === "success") return "OK";
+  if (type === "error") return "错误";
+  if (type === "warning") return "警告";
+  if (type === "success") return "成功";
   if (type === "command") return "$";
-  return "INFO";
+  return "信息";
 }

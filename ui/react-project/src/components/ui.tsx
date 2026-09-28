@@ -87,11 +87,11 @@ export function PageHeader({
     <header className="page-heading">
       <div className="page-heading-copy">
         {onBack ? (
-          <button className="back-link" type="button" onClick={onBack} aria-label="Back">
+          <button className="back-link" type="button" onClick={onBack} aria-label="返回">
             <ArrowLeft size={19} />
           </button>
         ) : backTo ? (
-          <Link className="back-link" to={backTo} aria-label="Back">
+          <Link className="back-link" to={backTo} aria-label="返回">
             <ArrowLeft size={19} />
           </Link>
         ) : null}
@@ -105,7 +105,7 @@ export function PageHeader({
   );
 }
 
-export function LoadingState({ label = "Loading" }: { label?: string }) {
+export function LoadingState({ label = "正在加载" }: { label?: string }) {
   return (
     <div className="loading-state" aria-label={label} aria-busy="true">
       <LoaderCircle className="spin" size={26} />
@@ -154,7 +154,7 @@ export function Modal({ title, children, onClose }: { title: string; children: R
       <section className="modal" role="dialog" aria-modal="true" aria-label={title} onMouseDown={(event) => event.stopPropagation()}>
         <header>
           <h2>{title}</h2>
-          <button className="icon-button" onClick={onClose} aria-label="Close"><X size={18} /></button>
+          <button className="icon-button" onClick={onClose} aria-label="关闭"><X size={18} /></button>
         </header>
         {children}
       </section>

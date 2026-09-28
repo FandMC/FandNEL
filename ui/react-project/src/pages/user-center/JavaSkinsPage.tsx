@@ -40,10 +40,10 @@ function JavaSkinCard({ skin, onSelect }: { skin: JavaSkin; onSelect(): void }) 
   return (
     <button className="skin-market-card" type="button" onClick={onSelect}>
       <span className="skin-market-media">
-        {skin.title_image_url ? <img src={skin.title_image_url} alt={`${skin.name} skin`} /> : <span />}
+        {skin.title_image_url ? <img src={skin.title_image_url} alt={`${skin.name} 皮肤`} /> : <span />}
       </span>
       <span className="skin-market-body">
-        <span className="skin-market-heading"><strong>{skin.name}</strong><small>{skin.like_num} likes</small></span>
+        <span className="skin-market-heading"><strong>{skin.name}</strong><small>{skin.like_num} 次点赞</small></span>
         <span className="skin-market-summary">{skin.brief_summary}</span>
       </span>
     </button>
@@ -90,7 +90,7 @@ function ApplySkinModal({ skinId, onClose }: { skinId: string; onClose(): void }
         pollTimer.current = window.setTimeout(run, 500);
       } catch (error) {
         setState("idle");
-        notify(error instanceof Error ? error.message : "Unable to check skin purchase.", "error");
+        notify(error instanceof Error ? error.message : "无法查询皮肤购买状态。", "error");
       }
     };
     void run();
@@ -98,7 +98,7 @@ function ApplySkinModal({ skinId, onClose }: { skinId: string; onClose(): void }
 
   useEffect(() => {
     void gateway.send("get_accounts", "available").catch((error) => {
-      notify(error instanceof Error ? error.message : "Unable to load accounts.", "error");
+      notify(error instanceof Error ? error.message : "无法加载账号。", "error");
     });
     return stopPolling;
   }, [gateway.send, notify, stopPolling]);
@@ -139,7 +139,7 @@ function ApplySkinModal({ skinId, onClose }: { skinId: string; onClose(): void }
       } catch (error) {
         stopPolling();
         setState("idle");
-        notify(error instanceof Error ? error.message : "Invalid skin service response.", "error");
+        notify(error instanceof Error ? error.message : "皮肤服务返回的数据无效。", "error");
       }
     }
   }, [applySkin, close, gateway.messages, gateway.send, notify, pollPurchase, skinId, stopPolling]);
@@ -153,19 +153,19 @@ function ApplySkinModal({ skinId, onClose }: { skinId: string; onClose(): void }
       await gateway.send("java_edition/skin_details", { user_id: account.id, item_id: skinId });
     } catch (error) {
       setState("idle");
-      notify(error instanceof Error ? error.message : "Unable to inspect skin ownership.", "error");
+      notify(error instanceof Error ? error.message : "无法查询皮肤拥有状态。", "error");
     }
   };
 
   return (
     <div className="legacy-modal-backdrop skin-apply-backdrop" role="presentation" onMouseDown={close}>
-      <section className="legacy-modal skin-apply-modal" role="dialog" aria-modal="true" aria-label="Apply Skin" onMouseDown={(event) => event.stopPropagation()}>
+      <section className="legacy-modal skin-apply-modal" role="dialog" aria-modal="true" aria-label="应用皮肤" onMouseDown={(event) => event.stopPropagation()}>
         {state === "idle" ? (
           <>
-            <header className="legacy-modal-header"><h2>Select Account</h2><button type="button" aria-label="Close" onClick={close}><X /></button></header>
+            <header className="legacy-modal-header"><h2>选择账号</h2><button type="button" aria-label="关闭" onClick={close}><X /></button></header>
             <div className="skin-apply-body">
               <SelectMenu
-                title="Choose an account"
+                title="请选择账号"
                 items={accounts}
                 selectedIndex={selectedIndex}
                 itemLabel={(account) => accountLabel(account as GatewayAccount)}
@@ -175,12 +175,12 @@ function ApplySkinModal({ skinId, onClose }: { skinId: string; onClose(): void }
                 }}
               />
             </div>
-            <footer className="skin-apply-actions"><button type="button" disabled={!accounts.length} onClick={() => void confirm()}>Confirm Selection</button></footer>
+            <footer className="skin-apply-actions"><button type="button" disabled={!accounts.length} onClick={() => void confirm()}>确认选择</button></footer>
           </>
         ) : (
           <div className="operation-state">
             {state === "purchasing" ? <LoaderCircle className="spin" /> : <span><Check /></span>}
-            <div><h3>{state === "purchasing" ? "Purchasing Skin" : "Applied Skin"}</h3><p>{state === "purchasing" ? "This may take a few seconds..." : "Skin has been applied successfully"}</p></div>
+            <div><h3>{state === "purchasing" ? "正在购买皮肤" : "皮肤已应用"}</h3><p>{state === "purchasing" ? "这可能需要几秒钟…" : "皮肤已成功应用"}</p></div>
           </div>
         )}
       </section>
@@ -208,7 +208,7 @@ export function JavaSkinsPage() {
     } catch (error) {
       requestInFlight.current = false;
       setLoading(false);
-      notify(error instanceof Error ? error.message : "Unable to load skins.", "error");
+      notify(error instanceof Error ? error.message : "无法加载皮肤。", "error");
     }
   }, [gateway.send, gateway.status, hasMore, notify]);
 
@@ -223,12 +223,12 @@ export function JavaSkinsPage() {
       try {
         const response = parseGatewayPayload<SkinListResponse & { code?: number; message?: string }>(message.payload);
         if (response.code !== undefined && Number(response.code) !== 0) {
-          notify(String(response.message ?? "Unable to load skins."), "error");
+          notify(String(response.message ?? "无法加载皮肤。"), "error");
           setHasMore(false);
           continue;
         }
         if (!Array.isArray(response.entities)) {
-          throw new Error("Invalid skin list response.");
+          throw new Error("皮肤列表返回的数据无效。");
         }
         setSkins((current) => {
           const combined = [...current, ...response.entities];
@@ -237,7 +237,7 @@ export function JavaSkinsPage() {
           return combined;
         });
       } catch (error) {
-        notify(error instanceof Error ? error.message : "Invalid skin list response.", "error");
+        notify(error instanceof Error ? error.message : "皮肤列表返回的数据无效。", "error");
       } finally {
         requestInFlight.current = false;
         setLoading(false);
@@ -262,13 +262,13 @@ export function JavaSkinsPage() {
 
   return (
     <main className="workspace-page skins-page">
-      <section className="server-browser-header"><div><h1>Skins</h1><p>Purchase and use custom Minecraft character skins</p></div></section>
+      <section className="server-browser-header"><div><h1>皮肤</h1><p>购买并使用自定义 Minecraft 角色皮肤</p></div></section>
       <section className="skin-market-grid">
         {skins.map((skin, index) => <JavaSkinCard skin={skin} onSelect={() => setSelectedSkinId(skin.entity_id)} key={`skin-${index}-${skin.entity_id}`} />)}
       </section>
       <div className="server-list-footer">
-        {loading ? <div>Loading more servers...</div> : null}
-        {!hasMore && !loading ? <><div>You've reached the end of the server list</div><button type="button" onClick={reload}>Reload</button></> : null}
+        {loading ? <div>正在加载更多皮肤…</div> : null}
+        {!hasMore && !loading ? <><div>已加载全部皮肤</div><button type="button" onClick={reload}>重新加载</button></> : null}
       </div>
       {selectedSkinId ? <ApplySkinModal skinId={selectedSkinId} onClose={() => setSelectedSkinId(null)} /> : null}
     </main>

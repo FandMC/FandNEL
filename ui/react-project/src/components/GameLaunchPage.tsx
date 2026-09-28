@@ -29,7 +29,7 @@ function gatewayErrorMessage(payload: unknown): string {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const record = value as Record<string, unknown>;
     if (record.code !== undefined && Number(record.code) !== 0) {
-      return String(record.message ?? "Gateway request failed.");
+      return String(record.message ?? "网关请求失败。");
     }
   }
   return "";
@@ -54,7 +54,7 @@ function accountText(account: Account): string {
     const value = account[key];
     if (value !== undefined && value !== null && value !== "") return String(value);
   }
-  return "Unknown account";
+  return "未知账号";
 }
 
 function accountId(account: Account): string {
@@ -183,7 +183,7 @@ function SkinThumbnail({ skin, selected, onSelect, skinUrl }: { skin: readonly [
     <button type="button" className={`skin-card ${selected ? "selected" : ""}`} onClick={onSelect}>
       <span className="skin-card-preview">
         <canvas ref={canvasRef} aria-hidden="true" />
-        {imageUrl ? <img src={imageUrl} alt={skin[0]} /> : <span className="skin-card-spinner" aria-label={`Loading ${skin[0]} skin`} />}
+        {imageUrl ? <img src={imageUrl} alt={skin[0]} /> : <span className="skin-card-spinner" aria-label={`正在加载 ${skin[0]} 皮肤`} />}
         <span className="skin-card-overlay"><strong>{skin[0]}</strong></span>
       </span>
       {selected ? (
@@ -212,11 +212,11 @@ function AccountSelector({ accounts, selected, onChange }: { accounts: Account[]
   return (
     <div className="game-account-select" ref={rootRef}>
       <button type="button" className={`game-account-trigger ${open ? "open" : ""}`} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-        <span><small>Choose Account</small><strong>{selected ? accountText(selected) : "Select an option"}</strong></span>
+        <span><small>选择账号</small><strong>{selected ? accountText(selected) : "请选择"}</strong></span>
         <span className="game-account-chevron"><ChevronIcon /></span>
       </button>
       {open ? (
-        <ul className="game-account-menu" role="listbox" aria-label="Choose Account">
+        <ul className="game-account-menu" role="listbox" aria-label="选择账号">
           {accounts.map((account, index) => (
             <li key={`${accountId(account)}-${index}`}>
               <button type="button" role="option" aria-selected={account === selected} className={account === selected ? "selected" : ""} onClick={() => { onChange(account); setOpen(false); }}>{accountText(account)}</button>
@@ -233,10 +233,10 @@ function SkinPicker({ onClose, localSkins, onSelect, currentSkin }: { onClose():
 
   return (
     <div className="skin-picker-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="skin-picker" role="dialog" aria-modal="true" aria-label="Skin Viewer" onMouseDown={(event) => event.stopPropagation()}>
-        <header><h2>Skin Viewer</h2><button type="button" aria-label="Close" onClick={onClose}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button></header>
-        {localSkins.length > 0 ? <div className="skin-picker-grid">{localSkins.map((skin) => <SkinThumbnail key={skin} skin={[skin, skin]} selected={localSelected === skin} onSelect={() => setLocalSelected(skin)} skinUrl={skin.endsWith(".zip") ? `/api/skins/thumbnail?file=${encodeURIComponent(skin)}` : `/skins/${skin}`} />)}</div> : <p className="skin-picker-empty">No skins found in resources/skins</p>}
-        <footer><button type="button" onClick={onClose}>Cancel</button>{localSelected ? <button className="primary" type="button" onClick={() => { onSelect(localSelected); onClose(); }}>Select</button> : null}</footer>
+      <section className="skin-picker" role="dialog" aria-modal="true" aria-label="皮肤预览" onMouseDown={(event) => event.stopPropagation()}>
+        <header><h2>皮肤预览</h2><button type="button" aria-label="关闭" onClick={onClose}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button></header>
+        {localSkins.length > 0 ? <div className="skin-picker-grid">{localSkins.map((skin) => <SkinThumbnail key={skin} skin={[skin, skin]} selected={localSelected === skin} onSelect={() => setLocalSelected(skin)} skinUrl={skin.endsWith(".zip") ? `/api/skins/thumbnail?file=${encodeURIComponent(skin)}` : `/skins/${skin}`} />)}</div> : <p className="skin-picker-empty">未在 resources/skins 中找到皮肤</p>}
+        <footer><button type="button" onClick={onClose}>取消</button>{localSelected ? <button className="primary" type="button" onClick={() => { onSelect(localSelected); onClose(); }}>选择</button> : null}</footer>
       </section>
     </div>
   );
@@ -276,7 +276,7 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
   const addressUserIdRef = useRef("");
   const accountsRef = useRef<Account[]>([]);
   const id = searchParams.get("id") ?? "";
-  const name = searchParams.get("name") ?? "Game Server";
+  const name = searchParams.get("name") ?? "游戏服务器";
   const realms = kind === "realms";
   const domainRealm = kind === "realm";
   const userId = selectedAccount ? accountId(selectedAccount) : "";
@@ -326,7 +326,7 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
       void Promise.all([
         send("get_accounts", "available-for-mobile"),
         send(addressType, addressPayload),
-      ]).catch((error) => showError(error, "Unable to load launch settings."));
+      ]).catch((error) => showError(error, "无法加载启动设置。"));
     }
   }, [domainRealm, id, realms, searchParams, send, showError, status]);
 
@@ -336,7 +336,7 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
 
   useEffect(() => {
     if (!userId || status !== "connected") return;
-    void send("g79_get_nickname", userId).catch((error) => showError(error, "Unable to load nickname."));
+    void send("g79_get_nickname", userId).catch((error) => showError(error, "无法加载昵称。"));
   }, [send, showError, status, userId]);
 
   useEffect(() => {
@@ -352,7 +352,7 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
         setSelectedAccount(nextAccounts.find((account) => accountId(account) === addressUserIdRef.current) ?? nextAccounts[0] ?? null);
       } else if (message.type === "g79_get_nickname") {
         const error = gatewayErrorMessage(message.payload);
-        if (error) showError(new Error(error), "Unable to load nickname.");
+        if (error) showError(new Error(error), "无法加载昵称。");
         else if (typeof message.payload === "string") setNickname(message.payload);
         else {
           const payload = recordPayload(message.payload);
@@ -364,13 +364,13 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
         || (searchParams.has("password") && ["error_notification", "error_notification_back", "error_notification_rt"].includes(message.type))
       )) {
         const error = gatewayErrorMessage(message.payload)
-          || (typeof message.payload === "string" ? message.payload : "请输入租赁服务器密码。");
+          || (typeof message.payload === "string" ? message.payload : "请输入租赁服密码。");
         setPasswordError(error);
         setPasswordPromptOpen(true);
       } else if (message.type === (realms ? "g79_rental_game_address" : "g79_net_game_address")) {
         const responseError = gatewayErrorMessage(message.payload);
         if (responseError) {
-          showError(new Error(responseError), "Unable to load server address.");
+          showError(new Error(responseError), "无法加载服务器地址。");
           continue;
         }
         const payload = recordPayload(message.payload);
@@ -436,7 +436,7 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
       await requestRentalAddress(rentalPassword);
     } catch (error) {
       setPasswordPromptOpen(true);
-      showError(error, "Unable to verify rental server password.");
+      showError(error, "无法验证租赁服密码。");
     }
   };
 
@@ -444,7 +444,7 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
     try {
       await send("g79_set_nickname", { id: userId, new: nickname });
     } catch (error) {
-      showError(error, "Unable to update nickname.");
+      showError(error, "无法更新昵称。");
     }
   };
 
@@ -452,7 +452,7 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
 		if (!realms) interceptor ? setJoining(true) : setLaunching(true);
 		try {
 			if (!address.host.trim() || !Number.isInteger(address.port) || address.port <= 0 || address.port > 65535) {
-				throw new Error("The server has not provided a valid connection address. Please try again later.");
+				throw new Error("服务器尚未提供有效的连接地址，请稍后重试。");
 			}
       const gatewaySettings = await loadGatewaySettings();
       const pePath = gatewaySettings.peLaunchPath;
@@ -474,7 +474,7 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
       const doLaunch = () => {
         void send(interceptor ? "g79_join_game" : "g79_launch_game", payload).catch((error) => {
           if (!realms) interceptor ? setJoining(false) : setLaunching(false);
-          showError(error, interceptor ? "Unable to launch interceptor." : "Unable to launch game.");
+          showError(error, interceptor ? "无法启动代理通道。" : "无法启动游戏。");
         });
       };
       if (domainRealm && itemIds.length > 0) {
@@ -486,7 +486,7 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
     } catch (error) {
       if (!realms) interceptor ? setJoining(false) : setLaunching(false);
       pendingLaunchRef.current = null;
-      showError(error, interceptor ? "Unable to launch interceptor." : "Unable to launch game.");
+      showError(error, interceptor ? "无法启动代理通道。" : "无法启动游戏。");
     }
   };
 
@@ -522,27 +522,27 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
   return (
     <div className="game-launch-page">
       <header className="game-launch-heading">
-        <button type="button" aria-label="Back" onClick={() => navigate(-1)}><BackIcon /></button>
-        <div><h1>{name}</h1><p>Server ID: {id}</p></div>
+        <button type="button" aria-label="返回" onClick={() => navigate(-1)}><BackIcon /></button>
+        <div><h1>{name}</h1><p>服务器 ID：{id}</p></div>
       </header>
       <div className="game-launch-grid">
-        <section className="game-skin-preview" aria-label="Character skin preview">
+        <section className="game-skin-preview" aria-label="角色皮肤预览">
           <SkinPreview skinBytes={skinBytes} fallbackSkinUrl={undefined} />
-          <button className="game-skin-edit" type="button" aria-label="Edit skin" onClick={() => setSkinPickerOpen(true)}><EditIcon /></button>
+          <button className="game-skin-edit" type="button" aria-label="修改皮肤" onClick={() => setSkinPickerOpen(true)}><EditIcon /></button>
         </section>
         <div className="game-launch-panel">
           <section className="game-launch-card game-launch-settings">
-            <header><h2>Settings</h2><p>Choose your account and character to play.</p></header>
+            <header><h2>设置</h2><p>选择账号和角色，开始游戏。</p></header>
             <AccountSelector accounts={accounts} selected={selectedAccount} onChange={setSelectedAccount} />
             <div className="game-nickname-field">
-              <label htmlFor="game-nickname"><small>Nick Name</small><input id="game-nickname" type="text" value={nickname} onChange={(event) => setNickname(event.target.value)} /></label>
-              <div><button type="button" aria-label="Generate random nickname" onClick={() => setNickname(generateRandomNickname())}><ShuffleIcon /></button><button type="button" onClick={() => void setServerNickname()}>Enter</button></div>
+              <label htmlFor="game-nickname"><small>昵称</small><input id="game-nickname" type="text" value={nickname} onChange={(event) => setNickname(event.target.value)} /></label>
+              <div><button type="button" aria-label="生成随机昵称" onClick={() => setNickname(generateRandomNickname())}><ShuffleIcon /></button><button type="button" onClick={() => void setServerNickname()}>确认</button></div>
             </div>
           </section>
           <section className="game-launch-card game-launch-actions">
-            <button className="primary" type="button" disabled={launching} onClick={() => void sendLaunch(false)}>{launching ? <span><Spinner />Launching...</span> : "Launch Game"}</button>
+            <button className="primary" type="button" disabled={launching} onClick={() => void sendLaunch(false)}>{launching ? <span><Spinner />正在启动...</span> : "启动游戏"}</button>
           </section>
-          <section className="game-launch-info"><dl><div><dt>Address:</dt><dd>{address.host}:{address.port}</dd></div><div><dt>Server Type:</dt><dd>{domainRealm ? "DomainGame" : (realms ? "RentalGame" : "NetGames")}</dd></div></dl></section>
+          <section className="game-launch-info"><dl><div><dt>地址：</dt><dd>{address.host}:{address.port}</dd></div><div><dt>服务器类型：</dt><dd>{domainRealm ? "领域" : (realms ? "租赁服" : "网络游戏")}</dd></div></dl></section>
         </div>
       </div>
       {skinPickerOpen ? <SkinPicker localSkins={localSkins} currentSkin={selectedSkin} onClose={() => setSkinPickerOpen(false)} onSelect={selectLocalSkin} /> : null}
@@ -551,12 +551,12 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
           <section className="java-join-modal" role="dialog" aria-modal="true" aria-labelledby="rental-password-title">
             <header>
               <h2 id="rental-password-title">服务器密码</h2>
-              <button type="button" aria-label="Close" onClick={() => setPasswordPromptOpen(false)}>
+              <button type="button" aria-label="关闭" onClick={() => setPasswordPromptOpen(false)}>
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 6.41L17.59 5L12 10.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 19 19 20.41 17.59 13.41 12z" fill="currentColor" /></svg>
               </button>
             </header>
             <form className="java-password-body" onSubmit={(event) => { event.preventDefault(); void submitRentalPassword(); }}>
-              <label htmlFor="rental-server-password">该租赁服务器需要密码</label>
+              <label htmlFor="rental-server-password">该租赁服需要密码</label>
               <input id="rental-server-password" type="password" value={rentalPassword} onChange={(event) => setRentalPassword(event.target.value)} autoFocus autoComplete="off" placeholder="请输入服务器密码" />
               {passwordError ? <p>{passwordError}</p> : null}
               <button type="submit">确认</button>
@@ -566,17 +566,17 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
       ) : null}
       {modTask ? (
         <div className="java-join-backdrop" role="presentation">
-          <section className="java-join-modal" role="dialog" aria-modal="true" aria-label="Mod Download">
+          <section className="java-join-modal" role="dialog" aria-modal="true" aria-label="模组下载">
             <header>
               <h2>模组下载</h2>
-              <button type="button" aria-label="Close" onClick={() => { setModTask(null); modDismissedRef.current = true; }}>
+              <button type="button" aria-label="关闭" onClick={() => { setModTask(null); modDismissedRef.current = true; }}>
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="currentColor" /></svg>
               </button>
             </header>
             <div className="java-password-body realm-mod-body">
               <p className="realm-mod-line">{modTask.message}{modTask.modName ? `（${modTask.modName}）` : ""}<span>{modTask.done}/{modTask.total}</span></p>
               <i className="realm-mod-bar"><b style={{ width: `${Math.min(Math.max((modTask.done / Math.max(modTask.total, 1)) * 100, 0), 100)}%` }} /></i>
-              <small className="realm-mod-hint">关闭弹窗不会取消下载，可在 Games 中取消</small>
+              <small className="realm-mod-hint">关闭弹窗不会取消下载，可在“游戏管理”页面取消</small>
             </div>
           </section>
         </div>

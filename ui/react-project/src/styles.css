@@ -1,7 +1,7 @@
 :root {
   color: #171717;
   background: #f7f8fa;
-  font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: Inter, "Segoe UI", "Microsoft YaHei UI", "PingFang SC", Roboto, Helvetica, Arial, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   letter-spacing: 0;
@@ -2397,7 +2397,7 @@ dd {
 
 :root {
   background: #fff;
-  font-family: "Red Hat Display", "Segoe UI", sans-serif;
+  font-family: "Red Hat Display", "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
   --primary: #171717;
   --muted: #5e687e;
   --border: #ebecf0;

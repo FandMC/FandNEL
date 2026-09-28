@@ -66,7 +66,7 @@ export function GatewayPage() {
         navigate("/user-center", { replace: true });
         return;
       } catch {
-        if (!cancelled) setLocalError("Unable to auto-connect to the gateway. Please enter the address manually.");
+        if (!cancelled) setLocalError("无法自动连接网关，请手动输入地址。");
       }
 
       if (cancelled) return;
@@ -90,7 +90,7 @@ export function GatewayPage() {
       await gateway.connect(endpoint);
       navigate("/user-center");
     } catch (connectError) {
-      setLocalError(connectError instanceof Error ? connectError.message : "Connection failed.");
+      setLocalError(connectError instanceof Error ? connectError.message : "连接失败。");
     }
   };
 
@@ -99,7 +99,7 @@ export function GatewayPage() {
     try {
       setEndpoint(await gateway.autoDiscover());
     } catch (discoverError) {
-      setLocalError(discoverError instanceof Error ? discoverError.message : "No gateway found.");
+      setLocalError(discoverError instanceof Error ? discoverError.message : "未找到网关。");
     }
   };
 
@@ -107,19 +107,19 @@ export function GatewayPage() {
   return (
     <main className="gateway-screen">
       <form className="gateway-form" onSubmit={connect}>
-        <h1>Connect to the Gateway</h1>
+        <h1>连接网关</h1>
         <input value={endpoint} onChange={(event) => setEndpoint(event.target.value)} placeholder="ws://localhost:19541/gateway" />
         {localError || gateway.error ? <Notice tone="error">{localError || gateway.error}</Notice> : null}
         <div className="gateway-actions">
-          <button type="button" disabled={gateway.status === "searching"} onClick={discover}>{gateway.status === "searching" ? "Searching..." : "Auto Search"}</button>
-          <button type="submit" disabled={gateway.status === "connecting"}>{gateway.status === "connecting" ? "Connecting..." : "Connect"}</button>
+          <button type="button" disabled={gateway.status === "searching"} onClick={discover}>{gateway.status === "searching" ? "正在搜索…" : "自动搜索"}</button>
+          <button type="submit" disabled={gateway.status === "connecting"}>{gateway.status === "connecting" ? "正在连接…" : "连接"}</button>
         </div>
       </form>
-      <button className="gateway-download" type="button" onClick={() => navigate("/download")}>No websocket link? Download gateway.</button>
+      <button className="gateway-download" type="button" onClick={() => navigate("/download")}>没有 WebSocket 地址？下载网关。</button>
     </main>
   );
 }
 
 export function NotFoundPage() {
-  return <main className="center-screen compact-center"><h1>404</h1><p>This page could not be found.</p><Link className="button button-primary" to="/">Return home</Link></main>;
+  return <main className="center-screen compact-center"><h1>404</h1><p>找不到此页面。</p><Link className="button button-primary" to="/">返回首页</Link></main>;
 }

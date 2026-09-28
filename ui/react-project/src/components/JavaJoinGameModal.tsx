@@ -100,7 +100,7 @@ export function SelectMenu({
   return (
     <div className="java-join-select" ref={rootRef}>
       <button type="button" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
-        <span><small>{title}</small><strong>{selected ? itemLabel(selected) : "Select an option"}</strong></span>
+        <span><small>{title}</small><strong>{selected ? itemLabel(selected) : "请选择"}</strong></span>
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
       </button>
       {open ? (
@@ -148,20 +148,20 @@ export function CreateRoleDialog({ accountId, gameId, kind, onClose }: { account
       await gateway.send("create_role", { id: accountId, name, game: gameId, type: kind });
     } catch (error) {
       setSubmitting(false);
-      notify(error instanceof Error ? error.message : "Unable to create role.", "error");
+      notify(error instanceof Error ? error.message : "无法创建角色。", "error");
     }
   };
 
   return (
     <div className="java-join-backdrop nested" role="presentation">
-      <section className="java-join-modal" role="dialog" aria-modal="true" aria-label="Create Role" onMouseDown={(event) => event.stopPropagation()}>
-        <header><h2>Create Role</h2><button type="button" aria-label="Close" onClick={onClose}><CloseIcon /></button></header>
+      <section className="java-join-modal" role="dialog" aria-modal="true" aria-label="创建角色" onMouseDown={(event) => event.stopPropagation()}>
+        <header><h2>创建角色</h2><button type="button" aria-label="关闭" onClick={onClose}><CloseIcon /></button></header>
         <div className="java-create-role-body">
-          <label><span>Role Name</span><input type="text" placeholder="Role name" value={name} disabled={submitting} onChange={(event) => setName(event.target.value)} /></label>
+          <label><span>角色名称</span><input type="text" placeholder="请输入角色名称" value={name} disabled={submitting} onChange={(event) => setName(event.target.value)} /></label>
         </div>
         <footer className="java-create-role-actions">
-          <button type="button" onClick={() => setName(generateRandomNickname())}>Random Name</button>
-          <button type="button" className="primary" disabled={!name.trim() || submitting} onClick={() => void submit()}>{submitting ? "Processing..." : "Request to LocalServer"}</button>
+          <button type="button" onClick={() => setName(generateRandomNickname())}>随机名称</button>
+          <button type="button" className="primary" disabled={!name.trim() || submitting} onClick={() => void submit()}>{submitting ? "处理中..." : "创建角色"}</button>
         </footer>
       </section>
     </div>
@@ -232,7 +232,7 @@ export function JavaJoinGameModal({
 
   useEffect(() => {
     if (gateway.status !== "connected") return;
-    void gateway.send("get_accounts", "available").catch((error) => notify(error instanceof Error ? error.message : "Unable to load Java accounts.", "error"));
+    void gateway.send("get_accounts", "available").catch((error) => notify(error instanceof Error ? error.message : "无法加载 Java 账号。", "error"));
   }, [gateway.send, gateway.status, notify]);
 
   useEffect(() => {
@@ -306,7 +306,7 @@ export function JavaJoinGameModal({
       });
       onClose();
     } catch (error) {
-      notify(error instanceof Error ? error.message : "Unable to launch Java game.", "error");
+      notify(error instanceof Error ? error.message : "无法启动 Java 游戏。", "error");
     } finally {
       setLaunching(false);
     }
@@ -330,7 +330,7 @@ export function JavaJoinGameModal({
     } catch (error) {
       joinRequestIdentifyRef.current = null;
       setJoining(false);
-      notify(error instanceof Error ? error.message : "Unable to launch Java interceptor.", "error");
+      notify(error instanceof Error ? error.message : "无法启动 Java 代理通道。", "error");
     }
   };
 
@@ -339,34 +339,34 @@ export function JavaJoinGameModal({
     setRoleIndex(0);
     sessionStorage.setItem("X-CURRENT-USER-INDEX", String(index));
     sessionStorage.setItem("X-CURRENT-USER-ID", value(accounts[index], "id"));
-    if (accounts[index]) void requestRoles(accounts[index]).catch((error) => notify(error instanceof Error ? error.message : "Unable to load roles.", "error"));
+    if (accounts[index]) void requestRoles(accounts[index]).catch((error) => notify(error instanceof Error ? error.message : "无法加载角色。", "error"));
   };
 
   return (
     <div className="java-join-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="java-join-modal" role="dialog" aria-modal="true" aria-label="Join Game" onMouseDown={(event) => event.stopPropagation()}>
-        <header><h2>Join Game</h2><button type="button" aria-label="Close" onClick={onClose}><CloseIcon /></button></header>
+      <section className="java-join-modal" role="dialog" aria-modal="true" aria-label="加入游戏" onMouseDown={(event) => event.stopPropagation()}>
+        <header><h2>加入游戏</h2><button type="button" aria-label="关闭" onClick={onClose}><CloseIcon /></button></header>
         <div className="java-join-body">
-          <SelectMenu title="Account" items={accounts} selectedIndex={accountIndex} onChange={chooseAccount} itemLabel={accountLabel} />
+          <SelectMenu title="账号" items={accounts} selectedIndex={accountIndex} onChange={chooseAccount} itemLabel={accountLabel} />
           <SelectMenu
-            title="Role"
+            title="角色"
             items={roles}
             selectedIndex={roleIndex}
             onChange={setRoleIndex}
             itemLabel={(role) => value(role, "name")}
             itemDisabled={(role) => roleUnavailable(role, kind)}
-            action={{ label: "Create New Role", onClick: () => setCreateRoleOpen(true) }}
+            action={{ label: "创建新角色", onClick: () => setCreateRoleOpen(true) }}
           />
-          <Toggle label="Socks5" checked={socks5} onChange={(checked) => updateSettings("enableSocks5", checked)} />
+          <Toggle label="SOCKS5 代理" checked={socks5} onChange={(checked) => updateSettings("enableSocks5", checked)} />
           {socks5 ? (
             <div className="java-join-proxy">
-              <p className="java-join-proxy-hint">Use the manually configured SOCKS5 address and credentials.</p>
+              <p className="java-join-proxy-hint">使用手动配置的 SOCKS5 地址和登录凭据。</p>
             </div>
           ) : null}
         </div>
         <footer className="java-join-actions">
-          <button type="button" disabled={launching} onClick={() => void launchGame()}>{launching ? "Processing..." : "Launch Game"}</button>
-          <button type="button" className="primary" disabled={joining || loadingRoles} onClick={() => void launchInterceptor()}>{joining ? "Processing..." : "Launch Interceptor"}</button>
+          <button type="button" disabled={launching} onClick={() => void launchGame()}>{launching ? "处理中..." : "启动游戏"}</button>
+          <button type="button" className="primary" disabled={joining || loadingRoles} onClick={() => void launchInterceptor()}>{joining ? "处理中..." : "启动代理通道"}</button>
         </footer>
       </section>
       {createRoleOpen ? <CreateRoleDialog accountId={value(selectedAccount, "id")} gameId={gameId} kind={kind} onClose={() => setCreateRoleOpen(false)} /> : null}

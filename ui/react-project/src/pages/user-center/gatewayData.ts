@@ -41,7 +41,7 @@ export function useGatewayList<T>(type: string) {
     try {
       await gateway.send(type);
     } catch (sendError) {
-      setError(sendError instanceof Error ? sendError.message : "Gateway request failed.");
+      setError(sendError instanceof Error ? sendError.message : "网关请求失败。");
       setLoading(false);
     }
   }, [gateway.status, gateway.send, type]);
@@ -61,7 +61,7 @@ export function useGatewayList<T>(type: string) {
           const envelope = parsed as Record<string, unknown>;
           const code = envelope.code;
           if (code !== undefined && Number(code) !== 0) {
-            setError(String(envelope.message ?? "Gateway request failed."));
+            setError(String(envelope.message ?? "网关请求失败。"));
             continue;
           }
           const list = ["items", "entities", "data", "sessions", "games", "mods"]

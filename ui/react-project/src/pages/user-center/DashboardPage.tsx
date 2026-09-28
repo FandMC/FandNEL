@@ -72,11 +72,11 @@ export function DashboardPage() {
     <div className="workspace-page dashboard-page dashboard-v253">
       <section className="dashboard-v253-header">
         <div>
-          <h1>Dashboard</h1>
-          <p>Welcome back, <strong>{user?.username || user?.displayName || ""}</strong></p>
+          <h1>概览</h1>
+          <p>欢迎回来，<strong>{user?.username || user?.displayName || ""}</strong></p>
         </div>
         <div className="dashboard-v253-header-actions">
-          <button type="button" onClick={() => navigate("/user-center/settings")}><Settings />Settings</button>
+          <button type="button" onClick={() => navigate("/user-center/settings")}><Settings />设置</button>
         </div>
       </section>
 
@@ -84,15 +84,15 @@ export function DashboardPage() {
         <div className="dashboard-accounts-column">
           <header className="dashboard-accounts-heading">
             <div>
-              <h2>Game Accounts</h2>
-              <p>Manage connected accounts</p>
+              <h2>游戏账号</h2>
+              <p>管理已添加的游戏账号</p>
             </div>
-            <button type="button" onClick={() => setLoginOpen(true)}><Plus />Add Account</button>
+            <button type="button" onClick={() => setLoginOpen(true)}><Plus />添加账号</button>
           </header>
 
           <div className="dashboard-account-card">
             <header>
-              <strong>Accounts ({accounts.length})</strong>
+              <strong>账号（{accounts.length}）</strong>
               <div className="dashboard-account-filters">
                 {(["all", "online", "offline"] as AccountFilter[]).map((filter) => (
                   <button className={accountFilter === filter ? "active" : ""} type="button" key={filter} onClick={() => setAccountFilter(filter)}>{filter}</button>
@@ -109,7 +109,7 @@ export function DashboardPage() {
                   />
                 ))}
               </div>
-            ) : <div className="dashboard-account-empty">No accounts found in this category.</div>}
+            ) : <div className="dashboard-account-empty">此分类下暂无账号。</div>}
           </div>
         </div>
 
@@ -141,7 +141,7 @@ function AccountRow({ account, onToggle }: { account: GatewayAccount; onToggle()
     if (pending.some((message) => message.type === "login/success" && String(message.payload) === account.id)) {
       setConnecting(false);
       connectingRef.current = false;
-      notify("Login successful", "success", 4_000);
+      notify("登录成功", "success", 4_000);
       const audio = document.querySelector<HTMLAudioElement>('audio[src="/notify.mp3"]');
       if (audio) {
         audio.currentTime = 0;
@@ -169,7 +169,7 @@ function AccountRow({ account, onToggle }: { account: GatewayAccount; onToggle()
     } catch (error) {
       setConnecting(false);
       connectingRef.current = false;
-      notify(error instanceof Error ? error.message : "Login failed", "error");
+      notify(error instanceof Error ? error.message : "登录失败", "error");
     }
   };
 
@@ -184,8 +184,8 @@ function AccountRow({ account, onToggle }: { account: GatewayAccount; onToggle()
         <span className="dashboard-platform-icon"><PlatformIcon platform={account.platform} /></span>
         <div>
           <div className="dashboard-account-name">
-            {editing ? <input autoFocus type="text" value={alias} onClick={(event) => event.stopPropagation()} onChange={(event) => setAlias(event.target.value)} onBlur={saveAlias} onKeyDown={(event) => { if (event.key === "Enter") saveAlias(); }} /> : <strong title={alias || "No Alias"}>{alias || account.id}</strong>}
-            {!editing ? <button type="button" onClick={(event) => { event.stopPropagation(); setEditing(true); }} aria-label="Edit alias" title="Edit alias"><Pencil /></button> : null}
+            {editing ? <input autoFocus type="text" value={alias} onClick={(event) => event.stopPropagation()} onChange={(event) => setAlias(event.target.value)} onBlur={saveAlias} onKeyDown={(event) => { if (event.key === "Enter") saveAlias(); }} /> : <strong title={alias || "未设置别名"}>{alias || account.id}</strong>}
+            {!editing ? <button type="button" onClick={(event) => { event.stopPropagation(); setEditing(true); }} aria-label="编辑别名" title="编辑别名"><Pencil /></button> : null}
           </div>
           <small>{account.channel} &bull; {account.id} &bull; {account.type}</small>
         </div>
@@ -193,8 +193,8 @@ function AccountRow({ account, onToggle }: { account: GatewayAccount; onToggle()
       <div className="dashboard-account-actions">
         <span className={account.authorized ? "online" : "offline"}>{account.authorized ? "Online" : "Offline"}</span>
         <div>
-          <button type="button" disabled={connecting} onClick={(event) => { event.stopPropagation(); void toggle(); }} aria-label={account.authorized ? "Disconnect" : "Connect"} title={account.authorized ? "Disconnect" : "Connect"}>{connecting ? <LoaderCircle className="spin" /> : <Power />}</button>
-          <button type="button" onClick={(event) => { event.stopPropagation(); if (window.confirm("Are you sure you want to delete this account?")) void gateway.send("delete_user", { id: account.id, platform: account.platform }); }} aria-label="Delete account" title="Delete Account"><Trash2 /></button>
+          <button type="button" disabled={connecting} onClick={(event) => { event.stopPropagation(); void toggle(); }} aria-label={account.authorized ? "断开连接" : "连接"} title={account.authorized ? "断开连接" : "连接"}>{connecting ? <LoaderCircle className="spin" /> : <Power />}</button>
+          <button type="button" onClick={(event) => { event.stopPropagation(); if (window.confirm("确定要删除此账号吗？")) void gateway.send("delete_user", { id: account.id, platform: account.platform }); }} aria-label="删除账号" title="删除账号"><Trash2 /></button>
         </div>
       </div>
     </div>
@@ -270,25 +270,25 @@ export function AccountLoginModal({ onClose }: { onClose(): void }) {
       await gateway.send("login", { channel: "netease", type, details, platform });
     } catch (sendError) {
       setBusy(false);
-      setError(sendError instanceof Error ? sendError.message : "Login failed.");
+      setError(sendError instanceof Error ? sendError.message : "登录失败。");
     }
   };
 
   const login = async (platform: number) => {
     if (tab === "cookie") {
-      if (!cookie.trim()) return setError("Please enter a cookie");
+      if (!cookie.trim()) return setError("请输入 Cookie");
       return sendNeteaseLogin("cookie", cookie, platform);
     }
     if (tab === "email") {
-      if (!email.trim() || !password.trim()) return setError("Please enter both email and password");
+      if (!email.trim() || !password.trim()) return setError("请输入邮箱和密码");
       return sendNeteaseLogin("password", JSON.stringify({ account: email, password }), platform);
     }
     if (tab === "sms") {
-      if (!phone.trim()) return setError("Please enter a phone number");
-      if (!code.trim()) return setError("Please enter the verification code");
+      if (!phone.trim()) return setError("请输入手机号");
+      if (!code.trim()) return setError("请输入验证码");
       return sendNeteaseLogin("sms", JSON.stringify({ phone, code }), platform);
     }
-    if (!pcUser.trim() || !pcPassword.trim()) return setError("Please enter both username and password");
+    if (!pcUser.trim() || !pcPassword.trim()) return setError("请输入用户名和密码");
     setBusy(true);
     setError("");
     try {
@@ -300,19 +300,19 @@ export function AccountLoginModal({ onClose }: { onClose(): void }) {
       });
     } catch (sendError) {
       setBusy(false);
-      setError(sendError instanceof Error ? sendError.message : "Login failed. Please check your username and password.");
+      setError(sendError instanceof Error ? sendError.message : "登录失败，请检查用户名和密码。");
     }
   };
 
   const sendCode = async () => {
-    if (!phone.trim()) return setError("Please enter a phone number");
+    if (!phone.trim()) return setError("请输入手机号");
     setSendingCode(true);
     setError("");
     try {
       await gateway.send("login", { channel: "send_code", type: "", details: phone });
     } catch (sendError) {
       setSendingCode(false);
-      setError(sendError instanceof Error ? sendError.message : "Failed to send verification code. Please try again.");
+      setError(sendError instanceof Error ? sendError.message : "验证码发送失败，请重试。");
     }
   };
 
@@ -320,15 +320,15 @@ export function AccountLoginModal({ onClose }: { onClose(): void }) {
     <ModalFrame className="account-login-modal" onClose={onClose}>
       <div className="account-login-tabs">
         <div>{accountTabs.map((item, index) => <button className={tab === item.value ? "active" : ""} type="button" key={item.value} onClick={() => { setTab(item.value); setError(""); sessionStorage.setItem("X-ACTIVE-TAB", String(index)); }}>{item.label}</button>)}</div>
-        <button className="modal-close" type="button" onClick={onClose} aria-label="Close modal"><X /></button>
+        <button className="modal-close" type="button" onClick={onClose} aria-label="关闭弹窗"><X /></button>
       </div>
       <div className="account-login-body">
-        {tab === "cookie" ? <><textarea value={cookie} onChange={(event) => { setCookie(event.target.value); setError(""); }} placeholder="Paste your cookie here..." disabled={busy} /><p className="account-login-note"><b>Note:</b> The 4399 cookie from the Desktop version cannot be used to log in on Mobile.</p></> : null}
-        {tab === "email" ? <><input type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(""); }} placeholder="Email address" autoComplete="email" disabled={busy} /><input type="password" value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} placeholder="Password" autoComplete="current-password" disabled={busy} /></> : null}
-        {tab === "sms" ? <><div className="sms-field"><input type="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setError(""); }} placeholder="Phone number" autoComplete="tel" disabled={busy} /><button type="button" disabled={sendingCode || countdown > 0 || busy} onClick={() => void sendCode()}>{sendingCode ? "Sending..." : countdown > 0 ? `${countdown}s` : "Send Code"}</button></div><input type="text" value={code} onChange={(event) => { setCode(event.target.value); setError(""); }} placeholder="Verification code" autoComplete="one-time-code" disabled={busy} /></> : null}
-        {tab === "4399pc" ? <><input type="text" value={pcUser} onChange={(event) => { setPcUser(event.target.value); setError(""); }} placeholder="Username" autoComplete="username" disabled={busy} /><input type="password" value={pcPassword} onChange={(event) => { setPcPassword(event.target.value); setError(""); }} placeholder="Password" autoComplete="current-password" disabled={busy} />{captchaId ? <div className="captcha-field"><input type="text" value={captcha} onChange={(event) => setCaptcha(event.target.value)} placeholder="Captcha" autoComplete="off" /><img src={`https://ptlogin.4399.com/ptlogin/captcha.do?captchaId=${captchaId}`} onClick={() => setCaptchaId(randomCaptchaId())} alt="Captcha" title="Click to refresh" /></div> : null}</> : null}
+        {tab === "cookie" ? <><textarea value={cookie} onChange={(event) => { setCookie(event.target.value); setError(""); }} placeholder="在此粘贴 Cookie…" disabled={busy} /><p className="account-login-note"><b>注意：</b>4399 电脑版的 Cookie 无法用于登录手机版。</p></> : null}
+        {tab === "email" ? <><input type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(""); }} placeholder="邮箱地址" autoComplete="email" disabled={busy} /><input type="password" value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} placeholder="密码" autoComplete="current-password" disabled={busy} /></> : null}
+        {tab === "sms" ? <><div className="sms-field"><input type="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setError(""); }} placeholder="手机号" autoComplete="tel" disabled={busy} /><button type="button" disabled={sendingCode || countdown > 0 || busy} onClick={() => void sendCode()}>{sendingCode ? "发送中…" : countdown > 0 ? `${countdown} 秒` : "发送验证码"}</button></div><input type="text" value={code} onChange={(event) => { setCode(event.target.value); setError(""); }} placeholder="验证码" autoComplete="one-time-code" disabled={busy} /></> : null}
+        {tab === "4399pc" ? <><input type="text" value={pcUser} onChange={(event) => { setPcUser(event.target.value); setError(""); }} placeholder="用户名" autoComplete="username" disabled={busy} /><input type="password" value={pcPassword} onChange={(event) => { setPcPassword(event.target.value); setError(""); }} placeholder="密码" autoComplete="current-password" disabled={busy} />{captchaId ? <div className="captcha-field"><input type="text" value={captcha} onChange={(event) => setCaptcha(event.target.value)} placeholder="图形验证码" autoComplete="off" /><img src={`https://ptlogin.4399.com/ptlogin/captcha.do?captchaId=${captchaId}`} onClick={() => setCaptchaId(randomCaptchaId())} alt="图形验证码" title="点击刷新" /></div> : null}</> : null}
         {error ? <p className="account-login-error">{error}</p> : null}
-        {tab === "4399pc" ? <div className="pc-login-actions"><button type="button" disabled={busy} onClick={() => void login(1)}>Mobile Login</button><button type="button" disabled={busy} onClick={() => void login(0)}>Desktop Login</button><button className="primary" type="button" disabled={busy} onClick={() => void login(2)}>{busy ? "Login..." : "Mixed Login"}</button><button className="register" type="button" disabled={busy} onClick={() => { setBusy(true); void gateway.send("register_4399").catch(() => setBusy(false)); }}>One-Click Auto Register</button></div> : <div className="netease-login-actions"><button type="button" disabled={busy} onClick={() => void login(1)}>{busy ? "Logging in..." : "Login Mobile"}</button><button className="primary" type="button" disabled={busy} onClick={() => void login(0)}>{busy ? "Logging in..." : "Login Desktop"}</button></div>}
+        {tab === "4399pc" ? <div className="pc-login-actions"><button type="button" disabled={busy} onClick={() => void login(1)}>登录手机版</button><button type="button" disabled={busy} onClick={() => void login(0)}>登录电脑版</button><button className="primary" type="button" disabled={busy} onClick={() => void login(2)}>{busy ? "登录中…" : "混合登录"}</button><button className="register" type="button" disabled={busy} onClick={() => { setBusy(true); void gateway.send("register_4399").catch(() => setBusy(false)); }}>一键自动注册</button></div> : <div className="netease-login-actions"><button type="button" disabled={busy} onClick={() => void login(1)}>{busy ? "登录中…" : "登录手机版"}</button><button className="primary" type="button" disabled={busy} onClick={() => void login(0)}>{busy ? "登录中…" : "登录电脑版"}</button></div>}
       </div>
     </ModalFrame>
   );

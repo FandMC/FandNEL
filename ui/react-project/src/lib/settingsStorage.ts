@@ -97,7 +97,7 @@ export async function writeGatewaySettings(settings: GatewaySettings): Promise<v
     });
     if (!response.ok) {
       const error = await response.json().catch(() => null) as { error?: string } | null;
-      throw new Error(error?.error ?? "Failed to save settings");
+      throw new Error(error?.error ?? "保存设置失败。");
     }
   } catch (error) {
     throw error;

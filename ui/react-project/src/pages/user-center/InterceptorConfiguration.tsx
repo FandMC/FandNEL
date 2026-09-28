@@ -120,7 +120,7 @@ export function InterceptorConfigurationLayout() {
   useEffect(() => {
     if (!id || gateway.status !== "connected") return;
     void gateway.send("java_edition/network/session/config", id).catch((error) => {
-      notify(error instanceof Error ? error.message : "Unable to load interceptor configuration.", "error");
+      notify(error instanceof Error ? error.message : "无法加载代理通道配置。", "error");
     });
   }, [gateway.send, gateway.status, id, notify]);
 
@@ -138,7 +138,7 @@ export function InterceptorConfigurationLayout() {
           if (nextDetails.entity_id === configRef.current?.game_id) setDetails(nextDetails);
         }
       } catch (error) {
-        notify(error instanceof Error ? error.message : "Invalid interceptor configuration response.", "error");
+        notify(error instanceof Error ? error.message : "代理通道配置响应无效。", "error");
       }
     }
   }, [gateway.messages, gateway.send, notify]);
@@ -150,13 +150,13 @@ export function InterceptorConfigurationLayout() {
     <InterceptorConfigContext.Provider value={{ id, config, details }}>
       <section className="interceptor-configuration">
         <header className="interceptor-heading">
-          <h1>Configuration</h1>
-          <p>Here, you can change the upstream server for this interceptor without stopping the proxy itself, and without affecting any established connections.</p>
-          <nav aria-label="Interceptor configuration">
-            <NavLink end to={`/user-center/launchers/configuration${query}`}>Config</NavLink>
-            <NavLink to={`/user-center/launchers/configuration/active-channels${query}`}>Active Channels</NavLink>
-            <NavLink to={`/user-center/launchers/configuration/packet-monitor${query}`}>Packet Monitor</NavLink>
-            <NavLink to={`/user-center/launchers/configuration/actions${query}`}>Actions</NavLink>
+          <h1>代理通道配置</h1>
+          <p>在此切换代理通道的上游服务器，无需停止代理，也不会影响已建立的连接。</p>
+          <nav aria-label="代理通道配置">
+            <NavLink end to={`/user-center/launchers/configuration${query}`}>配置</NavLink>
+            <NavLink to={`/user-center/launchers/configuration/active-channels${query}`}>活动连接</NavLink>
+            <NavLink to={`/user-center/launchers/configuration/packet-monitor${query}`}>数据包监控</NavLink>
+            <NavLink to={`/user-center/launchers/configuration/actions${query}`}>操作</NavLink>
           </nav>
         </header>
         <div className="interceptor-divider" />
@@ -190,7 +190,7 @@ function ServerChangerModal({ sessionId, onClose }: { sessionId: string; onClose
     } catch (error) {
       requestInFlight.current = false;
       setLoading(false);
-      notify(error instanceof Error ? error.message : "Unable to load servers.", "error");
+      notify(error instanceof Error ? error.message : "无法加载服务器列表。", "error");
     }
   }, [gateway.send, gateway.status, notify]);
 
@@ -216,7 +216,7 @@ function ServerChangerModal({ sessionId, onClose }: { sessionId: string; onClose
         } else if (message.type === "net_games_detail" && message.identify === "server_changer_modal") {
           const detail = parseGatewayPayload<NetGameDetails>(message.payload);
           const version = detail.mc_version_list?.[0];
-          if (!version) throw new Error("Selected server has no compatible Java version.");
+          if (!version) throw new Error("所选服务器没有兼容的 Java 版本。");
           void gateway.send("java_edition/session/reselect_server", {
             id: sessionId,
             game_version_id: version.mcversionid,
@@ -235,7 +235,7 @@ function ServerChangerModal({ sessionId, onClose }: { sessionId: string; onClose
         requestInFlight.current = false;
         setLoading(false);
         setPhase("selecting");
-        notify(error instanceof Error ? error.message : "Invalid server response.", "error");
+        notify(error instanceof Error ? error.message : "服务器响应无效。", "error");
       }
     }
   }, [gateway.messages, gateway.send, notify, offset, onClose, sessionId]);
@@ -264,7 +264,7 @@ function ServerChangerModal({ sessionId, onClose }: { sessionId: string; onClose
     setPhase("switching");
     void gateway.send("net_games_detail", server.entity_id, "server_changer_modal").catch((error) => {
       setPhase("selecting");
-      notify(error instanceof Error ? error.message : "Unable to select server.", "error");
+      notify(error instanceof Error ? error.message : "无法选择服务器。", "error");
     });
   };
 
@@ -273,10 +273,10 @@ function ServerChangerModal({ sessionId, onClose }: { sessionId: string; onClose
   return (
     <div className="legacy-modal-backdrop interceptor-modal-backdrop" role="presentation" onMouseDown={onClose}>
       {phase === "selecting" ? (
-        <section className="server-changer-modal" role="dialog" aria-modal="true" aria-label="Servers" onMouseDown={(event) => event.stopPropagation()}>
+        <section className="server-changer-modal" role="dialog" aria-modal="true" aria-label="服务器" onMouseDown={(event) => event.stopPropagation()}>
           <header>
-            <h2>Servers</h2>
-            <div><label><Search /><input type="text" value={query} placeholder="Search servers..." onChange={(event) => setQuery(event.target.value)} />{query ? <button type="button" aria-label="Clear search" onClick={() => setQuery("")}><X /></button> : null}</label><button type="button" aria-label="Close" onClick={onClose}><X /></button></div>
+            <h2>服务器</h2>
+            <div><label><Search /><input type="text" value={query} placeholder="搜索服务器..." onChange={(event) => setQuery(event.target.value)} />{query ? <button type="button" aria-label="清空搜索" onClick={() => setQuery("")}><X /></button> : null}</label><button type="button" aria-label="关闭" onClick={onClose}><X /></button></div>
           </header>
           <div
             className="server-changer-list"
@@ -292,17 +292,17 @@ function ServerChangerModal({ sessionId, onClose }: { sessionId: string; onClose
             {visibleServers.map((server, index) => (
               <button type="button" className="server-changer-row" onClick={() => selectServer(server)} key={`${index}-${server.entity_id}`}>
                 <span>{server.title_image_url ? <img src={server.title_image_url} alt={server.name} /> : null}</span>
-                <span><strong>{server.name}</strong><small>{server.brief_summary}</small><em>Online: <b>{server.online_count}</b></em></span>
+                <span><strong>{server.name}</strong><small>{server.brief_summary}</small><em>在线人数：<b>{server.online_count}</b></em></span>
               </button>
             ))}
             {loading ? <><div className="server-changer-skeleton" /><div className="server-changer-skeleton" /><div className="server-changer-skeleton" /></> : null}
-            {!loading && visibleServers.length === 0 ? <p className="server-changer-empty">{query ? "No servers found" : "No servers available"}</p> : null}
-            {!loading && !query && !hasMore && servers.length ? <p className="server-changer-empty compact">No more servers</p> : null}
+            {!loading && visibleServers.length === 0 ? <p className="server-changer-empty">{query ? "未找到服务器" : "暂无可用服务器"}</p> : null}
+            {!loading && !query && !hasMore && servers.length ? <p className="server-changer-empty compact">没有更多服务器了</p> : null}
           </div>
         </section>
       ) : (
         <section className="legacy-modal interceptor-state-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
-          <OperationState state={phase} switchingTitle="Switching Servers" switchingDescription="This should only take a moment..." finishedTitle="Successfully Switched" finishedDescription="Your server has been updated and is ready to use." />
+          <OperationState state={phase} switchingTitle="正在切换服务器" switchingDescription="请稍候..." finishedTitle="切换成功" finishedDescription="服务器已切换，可以继续使用。" />
         </section>
       )}
     </div>
@@ -326,7 +326,7 @@ function RoleChangerModal({ sessionId, details, onClose }: { sessionId: string; 
     setLoadingRoles(true);
     void gateway.send("get_roles", { id: accountId, game: details.entity_id, type: "net_game" }).catch((error) => {
       setLoadingRoles(false);
-      notify(error instanceof Error ? error.message : "Unable to load roles.", "error");
+      notify(error instanceof Error ? error.message : "无法加载角色列表。", "error");
     });
   }, [details.entity_id, gateway.send, notify]);
 
@@ -356,7 +356,7 @@ function RoleChangerModal({ sessionId, details, onClose }: { sessionId: string; 
       } catch (error) {
         setLoadingRoles(false);
         setPhase("selecting");
-        notify(error instanceof Error ? error.message : "Invalid role response.", "error");
+        notify(error instanceof Error ? error.message : "角色响应无效。", "error");
       }
     }
   }, [gateway.messages, gateway.send, notify, onClose, requestRoles, sessionId]);
@@ -368,7 +368,7 @@ function RoleChangerModal({ sessionId, details, onClose }: { sessionId: string; 
     setPhase("switching");
     void gateway.send("java_edition/session/switch_role", { id: sessionId, user_id: account.id, role: role.name }).catch((error) => {
       setPhase("selecting");
-      notify(error instanceof Error ? error.message : "Unable to switch role.", "error");
+      notify(error instanceof Error ? error.message : "无法切换角色。", "error");
     });
   };
 
@@ -377,11 +377,11 @@ function RoleChangerModal({ sessionId, details, onClose }: { sessionId: string; 
   return (
     <div className="legacy-modal-backdrop interceptor-modal-backdrop" role="presentation" onMouseDown={onClose}>
       {phase === "selecting" ? (
-        <section className="legacy-modal role-changer-modal" role="dialog" aria-modal="true" aria-label="Switch Role" onMouseDown={(event) => event.stopPropagation()}>
-          <header className="legacy-modal-header"><h2>Switch Role</h2><button type="button" aria-label="Close" onClick={onClose}><X /></button></header>
+        <section className="legacy-modal role-changer-modal" role="dialog" aria-modal="true" aria-label="切换角色" onMouseDown={(event) => event.stopPropagation()}>
+          <header className="legacy-modal-header"><h2>切换角色</h2><button type="button" aria-label="关闭" onClick={onClose}><X /></button></header>
           <div className="role-changer-body">
             <SelectMenu
-              title="Target Account"
+              title="目标账号"
               items={accounts}
               selectedIndex={accountIndex}
               itemLabel={(account) => accountLabel(account as GatewayAccount)}
@@ -390,25 +390,25 @@ function RoleChangerModal({ sessionId, details, onClose }: { sessionId: string; 
                 setRoleIndex(0);
                 if (accounts[index]) requestRoles(accounts[index].id);
               }}
-              action={{ label: "Add Account", onClick: () => setLoginOpen(true) }}
+              action={{ label: "添加账号", onClick: () => setLoginOpen(true) }}
             />
             <SelectMenu
-              title="Target Role"
+              title="目标角色"
               items={roles}
               selectedIndex={roleIndex}
               itemLabel={(role) => `${(role as GatewayRole).name}${Number((role as GatewayRole).expire_time ?? 0) !== 0 ? " (删除中)" : ""}`}
               itemDisabled={(role) => Number((role as GatewayRole).expire_time ?? 0) !== 0}
               onChange={setRoleIndex}
-              action={{ label: "Create New Role", onClick: () => setCreateRoleOpen(true) }}
+              action={{ label: "创建角色", onClick: () => setCreateRoleOpen(true) }}
             />
           </div>
-          <footer className="role-changer-actions"><button type="button" onClick={onClose}>Cancel</button><button className="primary" type="button" disabled={loadingRoles || roles.length === 0} onClick={switchRole}>{loadingRoles ? <><LoaderCircle className="spin" />Processing...</> : "Confirm Change"}</button></footer>
+          <footer className="role-changer-actions"><button type="button" onClick={onClose}>取消</button><button className="primary" type="button" disabled={loadingRoles || roles.length === 0} onClick={switchRole}>{loadingRoles ? <><LoaderCircle className="spin" />正在处理...</> : "确认切换"}</button></footer>
           {loginOpen ? <AccountLoginModal onClose={() => setLoginOpen(false)} /> : null}
           {createRoleOpen && selectedAccount ? <CreateRoleDialog accountId={selectedAccount.id} gameId={details.entity_id} kind="net_game" onClose={() => { setCreateRoleOpen(false); requestRoles(selectedAccount.id); }} /> : null}
         </section>
       ) : (
         <section className="legacy-modal interceptor-state-modal" role="dialog" aria-modal="true" onMouseDown={(event) => event.stopPropagation()}>
-          <OperationState state={phase} switchingTitle="Switching Role" switchingDescription="This should only take a moment..." finishedTitle="Successfully Switched Role" finishedDescription="Your role has been updated and is ready to use." />
+          <OperationState state={phase} switchingTitle="正在切换角色" switchingDescription="请稍候..." finishedTitle="角色切换成功" finishedDescription="角色已切换，可以继续使用。" />
         </section>
       )}
     </div>
@@ -436,34 +436,34 @@ export function InterceptorConfigPage() {
 
   if (!config || !details) return <ConfigSkeleton />;
   const detailsRows = [
-    ["Game ID", config.game_id],
-    ["Server Version", config.server_version],
-    ["Local Endpoint", `${config.local_address}:${config.local_port}`],
-    ["Forward Endpoint", `${config.forward_address}:${config.forward_port}`],
+    ["游戏 ID", config.game_id],
+    ["服务器版本", config.server_version],
+    ["本地地址", `${config.local_address}:${config.local_port}`],
+    ["转发地址", `${config.forward_address}:${config.forward_port}`],
   ];
 
   return (
     <>
       <section className="interceptor-upstream-card">
         <div>
-          <span>Upstream</span>
+          <span>上游服务器</span>
           <h2>{config.server_name}</h2>
-          <p>This is the currently intercepted server. Click the button below to instantly switch to another available server.</p>
-          <button type="button" onClick={() => setServerChangerOpen(true)}>Reselect</button>
+          <p>这是当前代理的服务器。点击下方按钮可立即切换到其他可用服务器。</p>
+          <button type="button" onClick={() => setServerChangerOpen(true)}>重新选择</button>
         </div>
-        <div>{details.brief_image_urls?.[0] ? <img src={details.brief_image_urls[0]} alt="Server View" /> : null}</div>
+        <div>{details.brief_image_urls?.[0] ? <img src={details.brief_image_urls[0]} alt="服务器预览" /> : null}</div>
       </section>
       <section className="interceptor-role-card">
-        <div><span>Role <small>{config.user_id}</small></span><strong>{config.nickname}</strong></div>
-        <button type="button" onClick={() => setRoleChangerOpen(true)}>Switch Role</button>
+        <div><span>角色 <small>{config.user_id}</small></span><strong>{config.nickname}</strong></div>
+        <button type="button" onClick={() => setRoleChangerOpen(true)}>切换角色</button>
       </section>
       <section className="interceptor-detail-card">
-        <h2>Details</h2>
+        <h2>详情</h2>
         <dl>{detailsRows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       </section>
       <section className="interceptor-mods-card">
-        <h2>Mods ({mods.length})</h2>
-        {mods.length ? <div>{mods.map((mod, index) => <article key={mod.id || index}><span><small>Mod Identifier</small><strong>{mod.id}</strong></span><span><small>MD5</small><strong>{mod.md5}</strong></span></article>)}</div> : <p>No modifications detected.</p>}
+        <h2>模组（{mods.length}）</h2>
+        {mods.length ? <div>{mods.map((mod, index) => <article key={mod.id || index}><span><small>模组标识</small><strong>{mod.id}</strong></span><span><small>MD5</small><strong>{mod.md5}</strong></span></article>)}</div> : <p>未检测到模组。</p>}
       </section>
       {serverChangerOpen ? <ServerChangerModal sessionId={id} onClose={() => setServerChangerOpen(false)} /> : null}
       {roleChangerOpen ? <RoleChangerModal sessionId={id} details={details} onClose={() => setRoleChangerOpen(false)} /> : null}
@@ -471,6 +471,6 @@ export function InterceptorConfigPage() {
   );
 }
 
-export function InterceptorPlaceholderPage({ section }: { section: "Actions" | "Active Channels" | "Packet Monitor" }) {
-  return <section className="interceptor-placeholder"><h1>Work In Progress</h1><p>This section of the <strong>{section}</strong> is currently being refined. New configuration modules will be deployed shortly.</p></section>;
+export function InterceptorPlaceholderPage({ section }: { section: "操作" | "活动连接" | "数据包监控" }) {
+  return <section className="interceptor-placeholder"><h1>开发中</h1><p><strong>{section}</strong>功能正在完善中，后续将提供新的配置模块。</p></section>;
 }

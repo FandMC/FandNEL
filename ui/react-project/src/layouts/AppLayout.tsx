@@ -110,7 +110,7 @@ export function UserCenterLayout() {
         }
         if (!captchaRequest) continue;
         if (response.code === 0) setCaptchaRequest(null);
-        else setCaptchaRequest((current) => current ? { ...current, error: response.message ?? "Login failed." } : current);
+        else setCaptchaRequest((current) => current ? { ...current, error: response.message ?? "登录失败。" } : current);
       } catch {
         // Non-JSON login messages do not belong to the captcha flow.
       }
@@ -210,7 +210,7 @@ function GlobalCaptchaModal({
 
   const submit = async () => {
     if (!captcha.trim()) {
-      setLocalError("Please enter the captcha");
+      setLocalError("请输入验证码");
       return;
     }
     setSubmitting(true);
@@ -218,7 +218,7 @@ function GlobalCaptchaModal({
     try {
       await onSubmit(identifier, captcha.trim());
     } catch (submitError) {
-      setLocalError(submitError instanceof Error ? submitError.message : "Login failed.");
+      setLocalError(submitError instanceof Error ? submitError.message : "登录失败。");
     } finally {
       setSubmitting(false);
     }
@@ -228,24 +228,24 @@ function GlobalCaptchaModal({
     <div className="global-captcha-backdrop" role="presentation">
       <section className="global-captcha-modal" role="dialog" aria-modal="true" aria-labelledby="global-captcha-title">
         <header>
-          <h2 id="global-captcha-title">Verification</h2>
-          <button type="button" aria-label="Close modal" onClick={onClose}><X /></button>
+          <h2 id="global-captcha-title">身份验证</h2>
+          <button type="button" aria-label="关闭弹窗" onClick={onClose}><X /></button>
         </header>
         <div className="global-captcha-body">
           <div>
             <input
               type="text"
-              placeholder="Captcha"
+              placeholder="验证码"
               value={captcha}
               autoComplete="off"
               onChange={(event) => { setCaptcha(event.target.value); setLocalError(""); }}
             />
-            <button type="button" className="global-captcha-image" aria-label="Refresh captcha" onClick={() => setIdentifier(createIdentifier())}>
-              <img src={`https://ptlogin.4399.com/ptlogin/captcha.do?captchaId=${identifier}`} alt="Captcha" />
+            <button type="button" className="global-captcha-image" aria-label="刷新验证码" onClick={() => setIdentifier(createIdentifier())}>
+              <img src={`https://ptlogin.4399.com/ptlogin/captcha.do?captchaId=${identifier}`} alt="验证码" />
             </button>
           </div>
           {localError || error ? <p>{localError || error}</p> : null}
-          <button type="button" disabled={submitting} onClick={() => void submit()}>{submitting ? "Login..." : "Login"}</button>
+          <button type="button" disabled={submitting} onClick={() => void submit()}>{submitting ? "正在登录…" : "登录"}</button>
         </div>
       </section>
     </div>
@@ -299,6 +299,13 @@ const toastIcons = {
   info: <Info aria-hidden="true" />,
 } as const;
 
+const toastLabels = {
+  success: "成功",
+  error: "错误",
+  warning: "警告",
+  info: "提示",
+} as const;
+
 function ToastCard({ toast, onDismiss }: { toast: ToastMessage; onDismiss(id: string): void }) {
   const [paused, setPaused] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -331,8 +338,8 @@ function ToastCard({ toast, onDismiss }: { toast: ToastMessage; onDismiss(id: st
         <span className="toast-icon">{toastIcons[toast.tone]}</span>
         <div className="toast-content">
           <div className="toast-heading">
-            <span>{toast.tone}</span>
-            <button type="button" aria-label="Dismiss notification" onClick={close}><X aria-hidden="true" /></button>
+            <span>{toastLabels[toast.tone]}</span>
+            <button type="button" aria-label="关闭通知" onClick={close}><X aria-hidden="true" /></button>
           </div>
           <p>{toast.message}</p>
         </div>
@@ -363,10 +370,10 @@ export function RequireUserCenter({ children }: { children: ReactNode }) {
   return (
     <main className="gateway-reconnect">
       {connecting ? <span className="gateway-reconnect-spinner" /> : null}
-      <h2>{connecting ? "Connecting to Gateway" : "Reconnect failed"}</h2>
-      <p>{connecting ? "Attempting to connect to local gateway..." : "Unable to connect to the gateway"}</p>
-      <button onClick={() => { gateway.setCurrentSessionConnected(false); gateway.setLastConnectedUrl(null); navigate("/gateway"); }}>Configure Gateway</button>
-      <button onClick={() => connecting ? gateway.disconnect() : void gateway.connect(gateway.lastConnectedUrl!).catch(() => undefined)}>{connecting ? "Cancel" : "Retry"}</button>
+      <h2>{connecting ? "正在连接网关" : "重新连接失败"}</h2>
+      <p>{connecting ? "正在尝试连接本地网关…" : "无法连接网关"}</p>
+      <button onClick={() => { gateway.setCurrentSessionConnected(false); gateway.setLastConnectedUrl(null); navigate("/gateway"); }}>配置网关</button>
+      <button onClick={() => connecting ? gateway.disconnect() : void gateway.connect(gateway.lastConnectedUrl!).catch(() => undefined)}>{connecting ? "取消" : "重试"}</button>
     </main>
   );
 }

@@ -33,8 +33,8 @@ interface PersistedCardBrowserState {
 
 const cardDefinitions: Record<Exclude<ServerBrowserKind, "bedrock-rental" | "bedrock-realms">, CardBrowserDefinition> = {
   "java-server": {
-    title: "Servers",
-    description: "Browse available servers",
+    title: "服务器",
+    description: "浏览可用服务器",
     requestType: "net_games",
     searchType: "net_games_search",
     storageKey: "servers-store",
@@ -42,8 +42,8 @@ const cardDefinitions: Record<Exclude<ServerBrowserKind, "bedrock-rental" | "bed
     bedrock: false,
   },
   "java-rental": {
-    title: "Rental Servers",
-    description: "Browse available rental servers",
+    title: "租赁服",
+    description: "浏览可用租赁服",
     requestType: "rental_games",
     searchType: "rental_games_search",
     storageKey: "rental-servers-store",
@@ -51,8 +51,8 @@ const cardDefinitions: Record<Exclude<ServerBrowserKind, "bedrock-rental" | "bed
     bedrock: false,
   },
   "bedrock-server": {
-    title: "Bedrock Servers",
-    description: "Browse available bedrock servers",
+    title: "基岩版服务器",
+    description: "浏览可用的基岩版服务器",
     requestType: "pe_net_games",
     storageKey: "bedrock-servers-store",
     rental: false,
@@ -80,7 +80,7 @@ function payloadRecord(payload: unknown): Resource {
 function payloadError(payload: unknown): string {
   const value = payloadRecord(payload);
   return value.code !== undefined && Number(value.code) !== 0
-    ? String(value.message ?? "Unable to load servers.")
+    ? String(value.message ?? "无法加载服务器。")
     : "";
 }
 
@@ -135,7 +135,7 @@ function nextMessages(messages: GatewayMessage[], lastHandled: GatewayMessage | 
 function ServerImage({ src, name }: { src: string; name: string }) {
   return (
     <div className="server-card-media">
-      {src ? <img src={src} alt={`${name} server image`} /> : <div className="server-image-placeholder" />}
+      {src ? <img src={src} alt={`${name} 服务器图片`} /> : <div className="server-image-placeholder" />}
     </div>
   );
 }
@@ -157,7 +157,7 @@ function PasswordDialog({
   const [error, setError] = useState("");
   const submit = () => {
     if (!password.trim()) {
-      setError("Please enter your password");
+      setError("请输入密码");
       return;
     }
     onSubmit(password);
@@ -165,17 +165,17 @@ function PasswordDialog({
 
   return (
     <div className="java-join-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="java-join-modal" role="dialog" aria-modal="true" aria-label="Enter Server Password" onMouseDown={(event) => event.stopPropagation()}>
+      <section className="java-join-modal" role="dialog" aria-modal="true" aria-label="输入服务器密码" onMouseDown={(event) => event.stopPropagation()}>
         <header>
-          <h2>Enter Server Password</h2>
-          <button type="button" aria-label="Close" onClick={onClose}>
+          <h2>输入服务器密码</h2>
+          <button type="button" aria-label="关闭" onClick={onClose}>
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="currentColor" /></svg>
           </button>
         </header>
         <div className="java-password-body">
-          <input autoFocus type="password" aria-label={`Password for ${name}`} placeholder="Enter your password" value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} onKeyDown={(event) => { if (event.key === "Enter") submit(); }} />
+          <input autoFocus type="password" aria-label={`${name} 的密码`} placeholder="请输入密码" value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} onKeyDown={(event) => { if (event.key === "Enter") submit(); }} />
           {error || errorMessage ? <p>{error || errorMessage}</p> : null}
-          <button type="button" disabled={submitting} onClick={submit}>{submitting ? "Verifying..." : "Submit"}</button>
+          <button type="button" disabled={submitting} onClick={submit}>{submitting ? "正在验证…" : "提交"}</button>
         </div>
       </section>
     </div>
@@ -229,7 +229,7 @@ function CardServerBrowser({ kind }: { kind: Exclude<ServerBrowserKind, "bedrock
     } catch (requestError) {
       requestInFlight.current = false;
       setLoading(false);
-      setError(requestError instanceof Error ? requestError.message : "Unable to load servers.");
+      setError(requestError instanceof Error ? requestError.message : "无法加载服务器。");
     }
   }, [definition.requestType, definition.rental, gateway.send, gateway.status]);
 
@@ -295,7 +295,7 @@ function CardServerBrowser({ kind }: { kind: Exclude<ServerBrowserKind, "bedrock
     } catch (requestError) {
       requestInFlight.current = false;
       setLoading(false);
-      setError(requestError instanceof Error ? requestError.message : "Unable to search servers.");
+      setError(requestError instanceof Error ? requestError.message : "无法搜索服务器。");
     }
   };
 
@@ -324,7 +324,7 @@ function CardServerBrowser({ kind }: { kind: Exclude<ServerBrowserKind, "bedrock
         <div><h1>{definition.title}</h1><p>{definition.description}</p></div>
         <label className="server-search">
           <Search />
-          <input type="text" placeholder="Search servers..." value={query} onKeyDown={(event) => { if (event.key === "Enter") void search(); }} onChange={(event) => { setQuery(event.target.value); setSearchResults(null); }} />
+          <input type="text" placeholder="搜索服务器…" value={query} onKeyDown={(event) => { if (event.key === "Enter") void search(); }} onChange={(event) => { setQuery(event.target.value); setSearchResults(null); }} />
         </label>
       </section>
       <div className="server-card-grid">
@@ -339,7 +339,7 @@ function CardServerBrowser({ kind }: { kind: Exclude<ServerBrowserKind, "bedrock
             <button className="server-card" type="button" onClick={() => openServer(server)} key={id || `server-${index}`}>
               <ServerImage src={image} name={name} />
               <div className="server-card-body">
-                <div className="server-card-heading"><h2>{name}</h2><span>{online} online</span></div>
+                <div className="server-card-heading"><h2>{name}</h2><span>{online} 人在线</span></div>
                 {definition.rental ? <span className={`server-access ${hasPassword ? "protected" : "open"}`}>{hasPassword ? "需要密码" : "无密码"}</span> : null}
                 <p>{description}</p>
               </div>
@@ -348,9 +348,9 @@ function CardServerBrowser({ kind }: { kind: Exclude<ServerBrowserKind, "bedrock
         })}
       </div>
       <div className="server-list-footer">
-        {error ? <div className="server-list-error" role="alert">{error}<button type="button" onClick={reload}>Retry</button></div> : null}
-        {loading ? <div>Loading more servers...</div> : null}
-        {!error && !hasMore && !loading ? <><div>You've reached the end of the server list</div><button type="button" onClick={reload}>Reload</button></> : null}
+        {error ? <div className="server-list-error" role="alert">{error}<button type="button" onClick={reload}>重试</button></div> : null}
+        {loading ? <div>正在加载更多服务器…</div> : null}
+        {!error && !hasMore && !loading ? <><div>已显示全部服务器</div><button type="button" onClick={reload}>重新加载</button></> : null}
       </div>
       {passwordTarget ? (
         <PasswordDialog
@@ -366,7 +366,7 @@ function CardServerBrowser({ kind }: { kind: Exclude<ServerBrowserKind, "bedrock
 function StatusBadge({ status }: { status: number }) {
   return (
     <span className={`bedrock-rental-status ${status === 1 ? "online" : status === 0 ? "offline" : "unknown"}`}>
-      <i />{status === 1 ? "Online" : status === 0 ? "Offline" : "Unknown"}
+      <i />{status === 1 ? "在线" : status === 0 ? "离线" : "未知"}
     </span>
   );
 }
@@ -459,7 +459,7 @@ function BedrockRealmsBrowser() {
     setLoading(true);
     setError("");
     void gateway.send("realm_list", { id: userIdRef.current }).catch((requestError) => {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load realms.");
+      setError(requestError instanceof Error ? requestError.message : "无法加载领域。");
       setLoading(false);
     });
   }, [gateway.send, gateway.status]);
@@ -779,13 +779,13 @@ function BedrockRealmsBrowser() {
       }
     }}>
       <section className="server-browser-header">
-        <div><h1>Bedrock Domain Servers</h1><p>Browse available bedrock domain servers</p></div>
+        <div><h1>基岩版领域</h1><p>浏览可用的基岩版领域</p></div>
         <div className="bedrock-realms-actions">
-          <button type="button" className="bedrock-realms-add" onClick={() => setAddOpen(true)}>Add</button>
-          <button type="button" className="bedrock-realms-exit" disabled={!selected || selected.is_mine || entering} onClick={removeRealm}>{entering ? "Entering..." : "Exit"}</button>
+          <button type="button" className="bedrock-realms-add" onClick={() => setAddOpen(true)}>添加</button>
+          <button type="button" className="bedrock-realms-exit" disabled={!selected || selected.is_mine || entering} onClick={removeRealm}>{entering ? "正在进入…" : "退出"}</button>
         </div>
       </section>
-      {loading ? <div className="bedrock-rental-loading">Loading realms...</div> : error ? <div className="bedrock-rental-empty" role="alert"><h3>Unable to load realms</h3><p>{error}</p><button type="button" onClick={loadRealms}>Retry</button></div> : realms.length > 0 ? (
+      {loading ? <div className="bedrock-rental-loading">正在加载领域…</div> : error ? <div className="bedrock-rental-empty" role="alert"><h3>无法加载领域</h3><p>{error}</p><button type="button" onClick={loadRealms}>重试</button></div> : realms.length > 0 ? (
         <div className={`bedrock-realms-grid${dragIndex !== null ? " dragging" : ""}`}>
           {realms.map((realm, index) => (
             <div
@@ -806,10 +806,10 @@ function BedrockRealmsBrowser() {
             >
               <div className="bedrock-realm-card-body">
                 <div className="bedrock-realm-card-heading">
-                  <strong>{realm.name || "Unnamed Realm"}</strong>
-                  <span className={realm.is_mine ? "mine" : (realm.status === 1 ? "online" : "offline")}>{realm.is_mine ? "Mine" : (realm.status === 1 ? "Online" : "Offline")}</span>
+                  <strong>{realm.name || "未命名领域"}</strong>
+                  <span className={realm.is_mine ? "mine" : (realm.status === 1 ? "online" : "offline")}>{realm.is_mine ? "我的" : (realm.status === 1 ? "在线" : "离线")}</span>
                 </div>
-                <small className="bedrock-realm-card-owner">Owner: {realm.user_name || "Unknown"}</small>
+                <small className="bedrock-realm-card-owner">服主：{realm.user_name || "未知"}</small>
                 <div className="bedrock-realm-card-players">
                   <span><Users />{realm.online_count}/{realm.capacity || "?"}</span>
                   <i><b style={{ width: `${realm.capacity > 0 ? Math.min((realm.online_count / realm.capacity) * 100, 100) : 0}%` }} /></i>
@@ -818,7 +818,7 @@ function BedrockRealmsBrowser() {
               <button
                 type="button"
                 className="bedrock-realm-open-btn"
-                aria-label={`Enter ${realm.name || "realm"}`}
+                aria-label={`进入${realm.name || "领域"}`}
                 onClick={(event) => { event.stopPropagation(); openRealm(realm); }}
               >
                 <ChevronRight />
@@ -827,7 +827,7 @@ function BedrockRealmsBrowser() {
           ))}
         </div>
       ) : (
-        <div className="bedrock-rental-empty"><Search /><h3>No Realms joined</h3><p>Use Add to join with an invite link or code.</p></div>
+        <div className="bedrock-rental-empty"><Search /><h3>尚未加入领域</h3><p>点击“添加”，通过邀请链接或邀请码加入领域。</p></div>
       )}
       {addOpen ? (
         <RealmInviteDialog
@@ -854,17 +854,17 @@ function RealmInviteDialog({ onClose, onSubmit }: { onClose(): void; onSubmit(co
 
   return (
     <div className="java-join-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="java-join-modal" role="dialog" aria-modal="true" aria-label="Join Realms" onMouseDown={(event) => event.stopPropagation()}>
+      <section className="java-join-modal" role="dialog" aria-modal="true" aria-label="加入领域" onMouseDown={(event) => event.stopPropagation()}>
         <header>
-          <h2>Join Realm</h2>
-          <button type="button" aria-label="Close" onClick={onClose}>
+          <h2>加入领域</h2>
+          <button type="button" aria-label="关闭" onClick={onClose}>
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="currentColor" /></svg>
           </button>
         </header>
         <div className="java-password-body">
-          <input autoFocus aria-label="Invite link or code" placeholder="Enter invite link or invite code" value={code} onChange={(event) => { setCode(event.target.value); setError(""); }} onKeyDown={(event) => { if (event.key === "Enter") submit(); }} />
+          <input autoFocus aria-label="邀请链接或邀请码" placeholder="请输入邀请链接或邀请码" value={code} onChange={(event) => { setCode(event.target.value); setError(""); }} onKeyDown={(event) => { if (event.key === "Enter") submit(); }} />
           {error ? <p>{error}</p> : null}
-          <button type="button" onClick={submit}>Join</button>
+          <button type="button" onClick={submit}>加入</button>
         </div>
       </section>
     </div>
@@ -899,7 +899,7 @@ function BedrockRentalBrowser() {
     setLoading(true);
     setError("");
     void gateway.send("pe_rental_games", { offset: (page - 1) * 30 }).catch((requestError) => {
-      setError(requestError instanceof Error ? requestError.message : "Unable to load servers.");
+      setError(requestError instanceof Error ? requestError.message : "无法加载服务器。");
       setLoading(false);
     });
   }, [gateway.send, gateway.status, page]);
@@ -964,42 +964,42 @@ function BedrockRentalBrowser() {
   return (
     <div className="workspace-page bedrock-rental-browser">
       <section className={`server-browser-header ${totalPages < 1 ? "with-margin" : ""}`}>
-        <div><h1>Bedrock Rental Servers</h1><p>Browse available bedrock rental servers ({total.toLocaleString()} total)</p></div>
-        <label className="server-search"><Search /><input type="text" placeholder="Search servers..." value={query} onKeyDown={(event) => { if (event.key === "Enter") setLoading(true); }} onChange={(event) => setQuery(event.target.value)} /></label>
+        <div><h1>基岩版租赁服</h1><p>浏览可用的基岩版租赁服（共 {total.toLocaleString()} 个）</p></div>
+        <label className="server-search"><Search /><input type="text" placeholder="搜索服务器…" value={query} onKeyDown={(event) => { if (event.key === "Enter") setLoading(true); }} onChange={(event) => setQuery(event.target.value)} /></label>
       </section>
       {totalPages > 1 ? (
         <div className="bedrock-rental-pagination">
-          <span>Showing {start + 1} to {Math.min(start + 30, total)} of {total} servers</span>
+          <span>显示第 {start + 1} 至 {Math.min(start + 30, total)} 个，共 {total} 个服务器</span>
           <div>
-            <button type="button" disabled={page === 1} onClick={() => setPage((current) => Math.max(current - 1, 1))}><ChevronLeft />Previous</button>
+            <button type="button" disabled={page === 1} onClick={() => setPage((current) => Math.max(current - 1, 1))}><ChevronLeft />上一页</button>
             {pageNumbers.map((pageNumber) => <button type="button" className={page === pageNumber ? "active" : ""} onClick={() => setPage(pageNumber)} key={pageNumber}>{pageNumber}</button>)}
-            <button type="button" disabled={page === totalPages} onClick={() => setPage((current) => Math.min(current + 1, totalPages))}>Next<ChevronRight /></button>
+            <button type="button" disabled={page === totalPages} onClick={() => setPage((current) => Math.min(current + 1, totalPages))}>下一页<ChevronRight /></button>
           </div>
         </div>
       ) : null}
-      {loading ? <div className="bedrock-rental-loading">Loading servers...</div> : error ? <div className="bedrock-rental-empty" role="alert"><h3>Unable to load servers</h3><p>{error}</p><button type="button" onClick={() => { setLoading(true); setError(""); void gateway.send("pe_rental_games", { offset: (page - 1) * 30 }).catch((requestError) => { setError(requestError instanceof Error ? requestError.message : "Unable to load servers."); setLoading(false); }); }}>Retry</button></div> : (
+      {loading ? <div className="bedrock-rental-loading">正在加载服务器…</div> : error ? <div className="bedrock-rental-empty" role="alert"><h3>无法加载服务器</h3><p>{error}</p><button type="button" onClick={() => { setLoading(true); setError(""); void gateway.send("pe_rental_games", { offset: (page - 1) * 30 }).catch((requestError) => { setError(requestError instanceof Error ? requestError.message : "无法加载服务器。"); setLoading(false); }); }}>重试</button></div> : (
         <div className="bedrock-rental-table-wrap">
-          <div className="bedrock-rental-table" role="table" aria-label="Bedrock rental servers">
-            <div className="bedrock-rental-row header" role="row"><span>Server</span><span>Players</span><span>Version</span><span>Likes</span><span>Status</span><span>Action</span></div>
+          <div className="bedrock-rental-table" role="table" aria-label="基岩版租赁服">
+            <div className="bedrock-rental-row header" role="row"><span>服务器</span><span>玩家</span><span>版本</span><span>点赞</span><span>状态</span><span>操作</span></div>
             {visibleServers.map((server) => {
               const id = text(server, "entity_id");
               const playerCount = number(server, "player_count");
               const capacity = number(server, "capacity");
               return (
                 <div className="bedrock-rental-row" role="row" key={id}>
-                   <div className="bedrock-rental-name"><strong>{text(server, "server_name")}</strong><small>ID: {text(server, "name")}{hasPassword(server) ? <LockKeyhole aria-label="Password protected" /> : null}{Boolean(server.pvp) ? <Shield aria-label="PVP enabled" /> : null}{number(server, "min_level") > 0 ? <b>Lv.{number(server, "min_level")}+</b> : null}</small></div>
+                   <div className="bedrock-rental-name"><strong>{text(server, "server_name")}</strong><small>编号：{text(server, "name")}{hasPassword(server) ? <LockKeyhole aria-label="需要密码" /> : null}{Boolean(server.pvp) ? <Shield aria-label="已启用玩家对战" /> : null}{number(server, "min_level") > 0 ? <b>等级 {number(server, "min_level")}+</b> : null}</small></div>
                   <div className="bedrock-rental-players"><span><Users />{playerCount}/{capacity}</span><i><b style={{ width: `${capacity > 0 ? Math.min((playerCount / capacity) * 100, 100) : 0}%` }} /></i></div>
                    <div><strong>{text(server, "mc_version")}</strong><small>{text(server, "server_type")}</small></div>
                    <div className="bedrock-rental-likes"><Heart />{text(server, "like_num")}</div>
                    <div><StatusBadge status={number(server, "status")} /></div>
-                    <button className="bedrock-rental-open" type="button" aria-label={`Open ${text(server, "server_name")}`} onClick={() => openRental(server)}><ChevronRight /></button>
+                    <button className="bedrock-rental-open" type="button" aria-label={`打开${text(server, "server_name")}`} onClick={() => openRental(server)}><ChevronRight /></button>
                 </div>
               );
             })}
           </div>
         </div>
       )}
-      {!loading && visibleServers.length === 0 ? <div className="bedrock-rental-empty"><Search /><h3>No servers found</h3><p>{query ? `No servers match "${query}". Try adjusting your search.` : "No servers are currently available."}</p></div> : null}
+      {!loading && visibleServers.length === 0 ? <div className="bedrock-rental-empty"><Search /><h3>未找到服务器</h3><p>{query ? `没有与“${query}”匹配的服务器，请尝试调整搜索条件。` : "当前没有可用服务器。"}</p></div> : null}
       {passwordTarget ? (
         <PasswordDialog
           name={passwordTarget.name}

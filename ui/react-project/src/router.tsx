@@ -53,9 +53,9 @@ export function AppRouter() {
             <Route path="launchers" element={<LaunchersPage />} />
             <Route path="launchers/configuration" element={<InterceptorConfigurationLayout />}>
               <Route index element={<InterceptorConfigPage />} />
-              <Route path="actions" element={<InterceptorPlaceholderPage section="Actions" />} />
-              <Route path="active-channels" element={<InterceptorPlaceholderPage section="Active Channels" />} />
-              <Route path="packet-monitor" element={<InterceptorPlaceholderPage section="Packet Monitor" />} />
+              <Route path="actions" element={<InterceptorPlaceholderPage section="操作" />} />
+              <Route path="active-channels" element={<InterceptorPlaceholderPage section="活动连接" />} />
+              <Route path="packet-monitor" element={<InterceptorPlaceholderPage section="数据包监控" />} />
             </Route>
             <Route path="java-skins" element={<JavaSkinsPage />} />
             <Route path="mods" element={<ModsPage />} />
