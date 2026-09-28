@@ -1,4 +1,4 @@
-/build*/
+build*/
 build/
 **/bin/
 **/obj/
@@ -16,3 +16,4 @@ plugins/
 *.cds
 node_modules/
 dist/
+.gocache*/

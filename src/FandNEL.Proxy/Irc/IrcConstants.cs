@@ -34,10 +34,10 @@ internal static partial class IrcConstants
     internal static readonly TimeSpan UnexpectedPollFailureDelay = TimeSpan.FromSeconds(5);
     internal static readonly TimeSpan RecentEchoLifetime = TimeSpan.FromSeconds(60);
 
-    internal const string EmptyCommandHint = "用法：/IRC 内容（例：/IRC 测试）";
+    internal const string EmptyCommandHint = "§e用法:/IRC 内容";
     internal const string WelcomeMessagePrefix = "§b[§eFand§b]§a IRC连接成功!";
     internal const string SendFailurePrefix = "§c发送失败: ";
-    internal const string OnlineHintFormat = "&bIRC在线人数: &a{0}";
+    internal const string OnlineHintFormat = "§bIRC在线人数: §a{0}";
     internal const string DisplayFormat = "§b[§a{0}§b]§f {1}";
 
     internal static string EncodeHeaderValue(string value) => Uri.EscapeDataString(value);
