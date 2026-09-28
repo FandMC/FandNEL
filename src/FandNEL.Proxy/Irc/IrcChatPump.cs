@@ -12,7 +12,6 @@ internal sealed class IrcChatPump(
     internal async Task RunAsync(CancellationToken cancellationToken)
     {
         var primed = false;
-        var nextUsageHint = DateTimeOffset.UtcNow.Add(IrcConstants.UsageHintInterval);
         var nextOnlineHint = DateTimeOffset.UtcNow.Add(IrcConstants.OnlineHintInterval);
 
         while (!cancellationToken.IsCancellationRequested)
@@ -33,12 +32,6 @@ internal sealed class IrcChatPump(
                             await relay(poll.Messages).ConfigureAwait(false);
                         primed = true;
                         var now = DateTimeOffset.UtcNow;
-                        if (options.ShowUsageHint && now >= nextUsageHint)
-                        {
-                            nextUsageHint = now.Add(IrcConstants.UsageHintInterval);
-                            await delivery.BroadcastAsync(IrcConstants.UsageHint).ConfigureAwait(false);
-                        }
-
                         if (options.ShowOnlineHint && now >= nextOnlineHint)
                         {
                             nextOnlineHint = now.Add(IrcConstants.OnlineHintInterval);

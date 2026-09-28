@@ -10,8 +10,6 @@ public sealed record IrcChatOptions
     public string BaseUrl { get; init; } = IrcConstants.DefaultBaseUrl;
     /// <summary>是否定期提示聊天室在线人数。</summary>
     public bool ShowOnlineHint { get; init; } = true;
-    /// <summary>是否定期提示「/IRC 内容」用法。</summary>
-    public bool ShowUsageHint { get; init; } = true;
     public int PollIntervalMilliseconds { get; init; } = IrcConstants.DefaultPollIntervalMilliseconds;
 
     [JsonIgnore]

@@ -29,13 +29,11 @@ internal static partial class IrcConstants
     internal static readonly TimeSpan HttpTimeout = TimeSpan.FromSeconds(15);
     internal static readonly TimeSpan WelcomeDelay = TimeSpan.FromSeconds(2);
     internal static readonly TimeSpan OnlineHintInterval = TimeSpan.FromSeconds(6);
-    internal static readonly TimeSpan UsageHintInterval = TimeSpan.FromSeconds(15);
     internal static readonly TimeSpan NoConnectionsDelay = TimeSpan.FromSeconds(1);
     internal static readonly TimeSpan PollFailureDelay = TimeSpan.FromSeconds(3);
     internal static readonly TimeSpan UnexpectedPollFailureDelay = TimeSpan.FromSeconds(5);
     internal static readonly TimeSpan RecentEchoLifetime = TimeSpan.FromSeconds(60);
 
-    internal const string UsageHint = "§b输入 /IRC 内容";
     internal const string EmptyCommandHint = "用法：/IRC 内容（例：/IRC 测试）";
     internal const string WelcomeMessagePrefix = "§b[§eFand§b]§a IRC连接成功!";
     internal const string SendFailurePrefix = "§c发送失败: ";
