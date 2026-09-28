@@ -19,21 +19,16 @@ public interface IAccountManager
 
 /// <summary>
 /// Gateway 账号管理门面。持久化和网易激活仍由 AccountService 负责，
-/// 该层负责 token 同步、变更事件和面向 UI 的一致入口。
+/// 该层负责变更事件和面向 UI 的一致入口。
 /// </summary>
 public sealed class AccountManager : IAccountManager, IAccountService
 {
     private readonly AccountService _accounts;
-    private readonly TokenManager _tokens;
-    private readonly UserManager _javaUsers;
     private readonly GatewayEventHub? _events;
 
-    public AccountManager(AccountService accounts, TokenManager tokens, UserManager javaUsers,
-        GatewayEventHub? events = null)
+    public AccountManager(AccountService accounts, GatewayEventHub? events = null)
     {
         _accounts = accounts ?? throw new ArgumentNullException(nameof(accounts));
-        _tokens = tokens ?? throw new ArgumentNullException(nameof(tokens));
-        _javaUsers = javaUsers ?? throw new ArgumentNullException(nameof(javaUsers));
         _events = events;
     }
 
@@ -46,39 +41,16 @@ public sealed class AccountManager : IAccountManager, IAccountService
         CancellationToken cancellationToken = default)
     {
         var session = await _accounts.LoginAsync(request, challengeHandler, cancellationToken).ConfigureAwait(false);
-        // AccountSession.Details 是持久化的 sauth；游戏 token 必须从激活后的运行态读取。
-        var activated = await _accounts.GetSessionAsync(session.UserId, cancellationToken).ConfigureAwait(false);
-        _tokens.UpdateToken(activated.UserId, activated.Token);
-        _javaUsers.AddUser(new ManagedUser
-        {
-            UserId = session.UserId,
-            Authorized = true,
-            AutoLogin = false,
-            Channel = session.Channel,
-            Type = session.Type,
-            Details = session.Details,
-            Platform = GatewayPlatform.Desktop,
-            Alias = session.Nickname
-        });
-        _javaUsers.AddUserToMaintain(activated.UserId, activated.Token);
         _events?.Publish(GatewayEventKind.AccountAdded, session.UserId, "账号已登录并激活。");
         return session;
     }
 
-    public async Task<JavaAccountSession> GetSessionAsync(string userId, CancellationToken cancellationToken = default)
-    {
-        var session = await _accounts.GetSessionAsync(userId, cancellationToken).ConfigureAwait(false);
-        _tokens.UpdateToken(session.UserId, session.Token);
-        _javaUsers.AddUserToMaintain(session.UserId, session.Token);
-        return session;
-    }
+    public Task<JavaAccountSession> GetSessionAsync(string userId, CancellationToken cancellationToken = default) =>
+        _accounts.GetSessionAsync(userId, cancellationToken);
 
     public async Task RefreshAsync(string userId, CancellationToken cancellationToken = default)
     {
         await _accounts.RefreshAsync(userId, cancellationToken).ConfigureAwait(false);
-        var session = await _accounts.GetSessionAsync(userId, cancellationToken).ConfigureAwait(false);
-        _tokens.UpdateToken(session.UserId, session.Token);
-        _javaUsers.AddUserToMaintain(session.UserId, session.Token);
         _events?.Publish(GatewayEventKind.AccountUpdated, userId);
     }
 
@@ -91,8 +63,12 @@ public sealed class AccountManager : IAccountManager, IAccountService
     public async Task RemoveAsync(string userId, CancellationToken cancellationToken = default)
     {
         await _accounts.RemoveAsync(userId, cancellationToken).ConfigureAwait(false);
-        _tokens.RemoveToken(userId);
-        _javaUsers.RemoveUser(userId);
         _events?.Publish(GatewayEventKind.AccountRemoved, userId);
+    }
+
+    public async Task DeactivateAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        await _accounts.DeactivateAsync(userId, cancellationToken).ConfigureAwait(false);
+        _events?.Publish(GatewayEventKind.AccountUpdated, userId);
     }
 }

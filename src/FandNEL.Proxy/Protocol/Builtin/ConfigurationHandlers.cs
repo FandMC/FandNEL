@@ -15,8 +15,13 @@ public sealed class AcknowledgeFinishConfigurationHandler : IPacketHandler
 {
     public ValueTask HandleAsync(PacketContext context, CancellationToken cancellationToken)
     {
-        context.Connection.ClientState = ConnectionState.Play;
-        context.Connection.ServerState = ConnectionState.Play;
+        // 确认包仍属于 Configuration；转发前不能让插件回复抢先使用 Play 包 ID。
+        context.AfterForward(() =>
+        {
+            context.Connection.ClientState = ConnectionState.Play;
+            context.Connection.ServerState = ConnectionState.Play;
+            return ValueTask.CompletedTask;
+        });
         return ValueTask.CompletedTask;
     }
 }

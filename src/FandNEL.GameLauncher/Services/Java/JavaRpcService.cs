@@ -118,7 +118,7 @@ internal sealed class JavaRpcService(WPFLauncher launcher, JavaLaunchRequest req
         try
         {
             var userId = _skip32.ComputeUserIdFromUuid(uuid).ToString();
-            var skins = launcher.GetSkinListInGame(request.UserId, request.UserToken, new EntityUserGameTextureRequest
+            var skins = launcher.GetSkinListInGame(request.UserId, request.GetUserToken(), new EntityUserGameTextureRequest
             {
                 UserId = userId,
                 ClientType = EnumGameClientType.Java
@@ -129,7 +129,7 @@ internal sealed class JavaRpcService(WPFLauncher launcher, JavaLaunchRequest req
                 var target = Path.Combine(paths.Skins, $"skin_{skin.SkinId}.png");
                 if (!File.Exists(target))
                 {
-                    var response = launcher.GetNetGameComponentDownloadList(request.UserId, request.UserToken, skin.SkinId);
+                    var response = launcher.GetNetGameComponentDownloadList(request.UserId, request.GetUserToken(), skin.SkinId);
                     var url = response.Data?.SubEntities.FirstOrDefault()?.ResUrl;
                     if (!string.IsNullOrWhiteSpace(url))
                     {

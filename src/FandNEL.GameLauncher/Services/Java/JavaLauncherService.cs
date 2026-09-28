@@ -41,7 +41,7 @@ public sealed class JavaLauncherService(WPFLauncher launcher, LauncherPaths path
             var rpcPort = rpc.Port;
             authentication = new AuthLibProtocol(IPAddress.Loopback, authPort, System.Text.Json.JsonSerializer.Serialize(mods),
                 MinecraftInstaller.VersionName(request.GameVersion), string.Empty,
-                (userId, _) => Task.FromResult<string?>(userId == request.UserId ? request.UserToken : null));
+                (userId, _) => Task.FromResult<string?>(userId == request.UserId ? request.GetUserToken() : null));
             authentication.Start();
             authPort = authentication.Port;
             Report(progress, LaunchStage.StartingProcess, "正在启动 Minecraft。");
@@ -66,13 +66,15 @@ public sealed class JavaLauncherService(WPFLauncher launcher, LauncherPaths path
     private static void Report(IProgress<LaunchProgress>? progress, LaunchStage stage, string message) => progress?.Report(new(stage, message));
 }
 
-public sealed class JavaGameHandle : IAsyncDisposable
+public sealed class JavaGameHandle : IGameLaunchHandle
 {
     private readonly IGameProcess _process;
     private readonly AuthLibProtocol _authentication;
     private readonly JavaRpcService _rpc;
     private readonly IProgress<LaunchProgress>? _progress;
     private int _disposed;
+    private int _stopping;
+    private int _failed;
 
     internal JavaGameHandle(IGameProcess process, AuthLibProtocol authentication, JavaRpcService rpc, EntityModsList mods, IProgress<LaunchProgress>? progress)
     {
@@ -90,11 +92,27 @@ public sealed class JavaGameHandle : IAsyncDisposable
     public async Task WaitForExitAsync(CancellationToken cancellationToken = default)
     {
         await _process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
-        await DisposeAsync().ConfigureAwait(false);
+        try
+        {
+            if (Volatile.Read(ref _stopping) == 0 && _process.ExitCode is { } exitCode && exitCode != 0)
+            {
+                Interlocked.Exchange(ref _failed, 1);
+                var message = $"Minecraft 异常退出，退出码 {exitCode}。";
+                _progress?.Report(new LaunchProgress(LaunchStage.Failed, message));
+                throw new InvalidOperationException(message);
+            }
+        }
+        finally
+        {
+            await DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
     {
+        if (Volatile.Read(ref _disposed) != 0)
+            return;
+        Interlocked.Exchange(ref _stopping, 1);
         _progress?.Report(new LaunchProgress(LaunchStage.Stopping, "正在关闭 Minecraft。"));
         await _process.StopAsync(cancellationToken).ConfigureAwait(false);
         await DisposeAsync().ConfigureAwait(false);
@@ -107,6 +125,7 @@ public sealed class JavaGameHandle : IAsyncDisposable
         _authentication.Dispose();
         await _rpc.DisposeAsync().ConfigureAwait(false);
         await _process.DisposeAsync().ConfigureAwait(false);
-        _progress?.Report(new LaunchProgress(LaunchStage.Completed, "Minecraft 已退出。"));
+        if (Volatile.Read(ref _failed) == 0)
+            _progress?.Report(new LaunchProgress(LaunchStage.Completed, "Minecraft 已退出。"));
     }
 }

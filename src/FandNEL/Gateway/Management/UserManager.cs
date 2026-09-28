@@ -25,32 +25,94 @@ public sealed class UserManager : IAsyncDisposable
 
     private readonly string _usersFilePath;
     private readonly WPFLauncher _launcher;
-    private readonly Action<string, string>? _tokenUpdated;
     private readonly ConcurrentDictionary<string, ManagedUser> _users = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, ManagedAvailableUser> _availableUsers = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _refreshGates = new(StringComparer.Ordinal);
+    private readonly object _availableGate = new();
     private readonly SemaphoreSlim _saveGate = new(1, 1);
     private readonly CancellationTokenSource _shutdown = new();
     private readonly Timer _saveTimer;
     private readonly Task _maintainTask;
-    private volatile bool _isDirty;
+    private long _changeVersion;
+    private long _savedVersion;
+    private int _disposed;
 
-    public UserManager(WPFLauncher launcher, string dataDirectory, Action<string, string>? tokenUpdated = null)
+    public UserManager(WPFLauncher launcher, string dataDirectory)
     {
         _launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
-        _tokenUpdated = tokenUpdated;
         ArgumentException.ThrowIfNullOrWhiteSpace(dataDirectory);
         Directory.CreateDirectory(dataDirectory);
         _usersFilePath = Path.Combine(dataDirectory, "users.json");
-        _saveTimer = new Timer(async _ =>
+        ReadUsersFromDisk();
+        _saveTimer = new Timer(_ =>
         {
-            try { await SaveUsersToDiskIfDirtyAsync().ConfigureAwait(false); }
+            try { SaveUsersToDiskIfDirtyAsync().GetAwaiter().GetResult(); }
             catch (Exception exception) { Log.Error(exception, "Failed to save Java users"); }
         }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
         _maintainTask = MaintainAsync(_shutdown.Token);
     }
 
+    public event Action<string, string>? TokenUpdated;
+    public event Action<string>? TokenRemoved;
+
     public ManagedAvailableUser? GetAvailableUser(string userId) =>
         _availableUsers.TryGetValue(userId, out var user) ? user : null;
+
+    public string GetAccessToken(string userId)
+    {
+        var user = GetAvailableUser(userId);
+        return !string.IsNullOrWhiteSpace(user?.AccessToken)
+            ? user.AccessToken
+            : throw new InvalidOperationException("账号会话已失效，请重新激活。");
+    }
+
+    public async Task<ManagedAvailableUser?> RefreshAvailableUserAsync(string userId,
+        CancellationToken cancellationToken = default)
+    {
+        var refreshGate = _refreshGates.GetOrAdd(userId, static _ => new SemaphoreSlim(1, 1));
+        await refreshGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var user = GetAvailableUser(userId);
+            if (user is null || !NeedsRefresh(user)) return user;
+
+            EntityAuthenticationUpdate? updated;
+            try
+            {
+                updated = await _launcher.AuthenticationUpdateAsync(userId, user.AccessToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                lock (_availableGate)
+                {
+                    var current = GetAvailableUser(userId);
+                    if (!ReferenceEquals(current, user)) return current;
+                }
+                throw;
+            }
+
+            lock (_availableGate)
+            {
+                var current = GetAvailableUser(userId);
+                if (!ReferenceEquals(current, user)) return current;
+                if (string.IsNullOrWhiteSpace(updated?.Token))
+                    throw new InvalidOperationException("账号 token 刷新失败，请稍后重试。");
+
+                // 只替换本次请求对应的会话，不能覆盖重新激活的 token 或复活已停用账号。
+                user = new ManagedAvailableUser
+                {
+                    UserId = userId,
+                    AccessToken = updated.Token,
+                    LastLoginTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+                };
+                _availableUsers[userId] = user;
+                TokenUpdated?.Invoke(userId, updated.Token);
+            }
+            Log.Information("Refreshed Java account token for {UserId}", userId);
+            return user;
+        }
+        finally { refreshGate.Release(); }
+    }
 
     public ManagedAvailableUser? GetLastAvailableUser() => _availableUsers.Values.LastOrDefault();
 
@@ -78,15 +140,7 @@ public sealed class UserManager : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(user);
         user.Platform = GatewayPlatform.Desktop;
-        _users.AddOrUpdate(user.UserId, user, (_, existing) =>
-        {
-            existing.Authorized = true;
-            existing.Channel = user.Channel;
-            existing.Type = user.Type;
-            existing.Details = user.Details;
-            existing.Alias = user.Alias;
-            return existing;
-        });
+        _users[user.UserId] = user;
         if (saveToDisk) MarkDirtyAndScheduleSave();
     }
 
@@ -95,15 +149,12 @@ public sealed class UserManager : IAsyncDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
         long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        _availableUsers.AddOrUpdate(userId,
-            _ => new ManagedAvailableUser { UserId = userId, AccessToken = accessToken, LastLoginTime = now },
-            (_, current) =>
-            {
-                current.AccessToken = accessToken;
-                current.LastLoginTime = now;
-                return current;
-            });
-        _tokenUpdated?.Invoke(userId, accessToken);
+        lock (_availableGate)
+        {
+            _availableUsers[userId] = new ManagedAvailableUser
+                { UserId = userId, AccessToken = accessToken, LastLoginTime = now };
+            TokenUpdated?.Invoke(userId, accessToken);
+        }
     }
 
     public void AddUserToMaintain(EntityAuthenticationOtp authentication) =>
@@ -112,12 +163,16 @@ public sealed class UserManager : IAsyncDisposable
     public void RemoveUser(string userId)
     {
         if (_users.TryRemove(userId, out _)) MarkDirtyAndScheduleSave();
-        _availableUsers.TryRemove(userId, out _);
+        RemoveAvailableUser(userId);
     }
 
     public void RemoveAvailableUser(string userId)
     {
-        _availableUsers.TryRemove(userId, out _);
+        lock (_availableGate)
+        {
+            _availableUsers.TryRemove(userId, out _);
+            TokenRemoved?.Invoke(userId);
+        }
         if (_users.TryGetValue(userId, out var user))
         {
             user.Authorized = false;
@@ -132,7 +187,12 @@ public sealed class UserManager : IAsyncDisposable
             if (!File.Exists(_usersFilePath)) return;
             await using var stream = File.OpenRead(_usersFilePath);
             var users = await JsonSerializer.DeserializeAsync<List<ManagedUser>>(
-                stream, JsonOptions, cancellationToken).ConfigureAwait(false) ?? [];
+                stream, JsonOptions, cancellationToken).ConfigureAwait(false)
+                ?? throw new InvalidDataException("Java 账号文件内容不能为空。");
+            if (users.Any(user => user is null || string.IsNullOrWhiteSpace(user.UserId)
+                    || user.Channel is null || user.Type is null || user.Details is null)
+                || users.Select(user => user.UserId).Distinct(StringComparer.Ordinal).Count() != users.Count)
+                throw new InvalidDataException("Java 账号文件包含无效或重复账号。");
             _users.Clear();
             foreach (var user in users)
             {
@@ -141,10 +201,9 @@ public sealed class UserManager : IAsyncDisposable
             }
             Log.Information("Loaded {Count} Java users from disk", users.Count);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (JsonException exception)
         {
-            Log.Error(exception, "Failed to read Java users from disk");
-            _users.Clear();
+            throw new InvalidDataException("Java 账号文件格式错误，未覆盖 users.json。", exception);
         }
     }
 
@@ -152,13 +211,13 @@ public sealed class UserManager : IAsyncDisposable
 
     public void MarkDirtyAndScheduleSave()
     {
-        _isDirty = true;
+        Interlocked.Increment(ref _changeVersion);
         _saveTimer.Change(SaveDebounce, Timeout.InfiniteTimeSpan);
     }
 
     public async Task SaveUsersToDiskAsync(CancellationToken cancellationToken = default)
     {
-        _isDirty = true;
+        Interlocked.Increment(ref _changeVersion);
         await SaveUsersToDiskIfDirtyAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -170,8 +229,7 @@ public sealed class UserManager : IAsyncDisposable
         {
             try
             {
-                long threshold = DateTimeOffset.UtcNow.Subtract(RefreshAfter).ToUnixTimeMilliseconds();
-                var expired = _availableUsers.Values.Where(user => user.LastLoginTime < threshold).ToArray();
+                var expired = _availableUsers.Values.Where(NeedsRefresh).ToArray();
                 await Task.WhenAll(expired.Select(user => RefreshUserAsync(user, cancellationToken))).ConfigureAwait(false);
                 await Task.Delay(RefreshInterval, cancellationToken).ConfigureAwait(false);
             }
@@ -189,19 +247,7 @@ public sealed class UserManager : IAsyncDisposable
     {
         try
         {
-            var updated = await _launcher.AuthenticationUpdateAsync(user.UserId, user.AccessToken).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(updated?.Token))
-            {
-                Log.Warning("Java account {UserId} token refresh returned no token", user.UserId);
-                return;
-            }
-            if (_availableUsers.TryGetValue(user.UserId, out var current) && ReferenceEquals(current, user))
-            {
-                current.AccessToken = updated.Token;
-                current.LastLoginTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                _tokenUpdated?.Invoke(current.UserId, current.AccessToken);
-                Log.Information("Refreshed Java account token for {UserId}", user.UserId);
-            }
+            await RefreshAvailableUserAsync(user.UserId, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -209,26 +255,55 @@ public sealed class UserManager : IAsyncDisposable
         }
     }
 
+    private static bool NeedsRefresh(ManagedAvailableUser user) =>
+        user.LastLoginTime <= DateTimeOffset.UtcNow.Subtract(RefreshAfter).ToUnixTimeMilliseconds();
+
     private async Task SaveUsersToDiskIfDirtyAsync(CancellationToken cancellationToken = default)
     {
-        if (!_isDirty) return;
+        if (Volatile.Read(ref _changeVersion) == Volatile.Read(ref _savedVersion)) return;
         await _saveGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (!_isDirty) return;
-            var contents = JsonSerializer.Serialize(_users.Values.ToArray(), JsonOptions);
-            await File.WriteAllTextAsync(_usersFilePath, contents, cancellationToken).ConfigureAwait(false);
-            _isDirty = false;
+            while (Volatile.Read(ref _changeVersion) != Volatile.Read(ref _savedVersion))
+            {
+                long version = Volatile.Read(ref _changeVersion);
+                string temporaryPath = $"{_usersFilePath}.{Guid.NewGuid():N}.tmp";
+                try
+                {
+                    await using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write,
+                                     FileShare.None, 81920, FileOptions.Asynchronous | FileOptions.WriteThrough))
+                    {
+                        await JsonSerializer.SerializeAsync(stream, _users.Values.ToArray(), JsonOptions,
+                            cancellationToken).ConfigureAwait(false);
+                        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                        stream.Flush(flushToDisk: true);
+                    }
+                    if (File.Exists(_usersFilePath))
+                        File.Replace(temporaryPath, _usersFilePath, destinationBackupFileName: null);
+                    else
+                        File.Move(temporaryPath, _usersFilePath);
+                    Volatile.Write(ref _savedVersion, version);
+                }
+                finally
+                {
+                    try { File.Delete(temporaryPath); }
+                    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                    {
+                        Log.Warning(exception, "Failed to remove temporary Java users file");
+                    }
+                }
+            }
         }
         finally { _saveGate.Release(); }
     }
 
     public async ValueTask DisposeAsync()
     {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         _shutdown.Cancel();
         try { await _maintainTask.ConfigureAwait(false); }
         catch (OperationCanceledException) { }
-        _saveTimer.Dispose();
+        await _saveTimer.DisposeAsync().ConfigureAwait(false);
         await SaveUsersToDiskIfDirtyAsync().ConfigureAwait(false);
         _shutdown.Dispose();
         _saveGate.Dispose();

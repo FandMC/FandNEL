@@ -15,7 +15,7 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        var baseDirectory = Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory;
+        var baseDirectory = AppContext.BaseDirectory;
         Directory.SetCurrentDirectory(baseDirectory);
         ConfigureLogger(baseDirectory);
         AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
@@ -28,10 +28,10 @@ internal static class Program
         PhotinoHost? browser = null;
         try
         {
+            ApplicationDataMigration.ImportIfMissing(baseDirectory);
             launcher = new WPFLauncher();
-            var dataDirectory = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FandNEL");
-            accounts = new AccountService(launcher, dataDirectory);
+            accounts = new AccountService(launcher, baseDirectory);
+            ApplicationDataMigration.RemoveObsoleteAccountFiles(baseDirectory);
             proxy = new GameProxyService(accounts);
             runtime = new GatewayRuntime(accounts, launcher, proxy);
             _ = runtime.StartAsync();

@@ -1,3 +1,5 @@
+using FandNEL.Proxy.Packet.IO;
+using FandNEL.Proxy.Packet.Minecraft.V1206;
 namespace FandNEL.Proxy.Protocol.Builtin;
 
 [RegisterPacket(ConnectionState.Login, PacketDirection.ServerBound, 0)]
@@ -5,6 +7,16 @@ public sealed class LoginStartHandler : IPacketHandler
 {
     public ValueTask HandleAsync(PacketContext context, CancellationToken cancellationToken)
     {
+        if (context.Version == ProtocolVersion.V1206)
+        {
+            var packet = LoginStartPacket.Read(context.Payload);
+            context.ReplacePayload((packet with
+            {
+                Name = context.Connection.Role.Name,
+                PlayerUuid = Guid.TryParse(context.Connection.Role.Id, out var uuid) ? uuid : packet.PlayerUuid
+            }).Write());
+            return ValueTask.CompletedTask;
+        }
         var reader = context.CreateReader();
         _ = reader.ReadString(16);
         using var writer = new PacketWriter();
@@ -38,6 +50,14 @@ public sealed class EncryptionRequestHandler : IPacketHandler
 {
     public async ValueTask HandleAsync(PacketContext context, CancellationToken cancellationToken)
     {
+        if (context.Version == ProtocolVersion.V1206)
+        {
+            var packet = EncryptionRequestPacket.Read(context.Payload);
+            await context.Connection.AuthenticateAsync(packet.ServerId, packet.PublicKey, packet.VerifyToken,
+                packet.ShouldAuthenticate, cancellationToken).ConfigureAwait(false);
+            context.Cancel();
+            return;
+        }
         var reader = context.CreateReader();
         var serverId = reader.ReadString(20);
         var publicKey = context.Version == ProtocolVersion.V1076
@@ -58,7 +78,7 @@ public sealed class CompressionHandler : IPacketHandler
     {
         if (context.Version == ProtocolVersion.V1076)
             return ValueTask.CompletedTask;
-        var threshold = context.CreateReader().ReadVarInt();
+        var threshold = SetCompressionPacket.Read(context.Payload).Threshold;
         context.Connection.EnableServerCompression(threshold);
         context.AfterForward(() =>
         {
@@ -74,13 +94,23 @@ public sealed class LoginSuccessHandler : IPacketHandler
 {
     public ValueTask HandleAsync(PacketContext context, CancellationToken cancellationToken)
     {
-        var reader = context.CreateReader();
         var connection = context.Connection;
-        if (context.Version >= ProtocolVersion.V1200)
-            connection.PlayerUuid = new Guid(reader.ReadBytes(16), bigEndian: true);
-        else if (Guid.TryParse(reader.ReadString(36), out var uuid))
-            connection.PlayerUuid = uuid;
-        var username = reader.ReadString(16);
+        string username;
+        if (context.Version == ProtocolVersion.V1206)
+        {
+            var packet = LoginSuccessPacket.Read(context.Payload);
+            connection.PlayerUuid = packet.PlayerUuid;
+            username = packet.Name;
+        }
+        else
+        {
+            var reader = context.CreateReader();
+            if (context.Version >= ProtocolVersion.V1200)
+                connection.PlayerUuid = reader.ReadUuid();
+            else if (Guid.TryParse(reader.ReadString(36), out var uuid))
+                connection.PlayerUuid = uuid;
+            username = reader.ReadString(16);
+        }
         connection.PlayerName = username;
         if (context.Version >= ProtocolVersion.V1206)
             connection.ServerState = ConnectionState.Configuration;

@@ -41,6 +41,7 @@ public sealed class SystemGameProcessFactory : IGameProcessFactory
 
         public int ProcessId => process.Id;
         public bool HasExited => process.HasExited;
+        public int? ExitCode => process.HasExited ? process.ExitCode : null;
 
         public Task WaitForExitAsync(CancellationToken cancellationToken = default) =>
             process.WaitForExitAsync(cancellationToken);

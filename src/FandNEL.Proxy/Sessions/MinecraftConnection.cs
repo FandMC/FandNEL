@@ -1,16 +1,19 @@
+using FandNEL.Proxy.Packet.IO;
+using FandNEL.Proxy.Packet.Minecraft.V1206;
 using System.Numerics;
 using System.Net;
 using System.Net.Sockets;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json;
 using DotNetty.Buffers;
 using DotNetty.Transport.Bootstrapping;
 using DotNetty.Transport.Channels;
 using DotNetty.Transport.Channels.Sockets;
 using FandNEL.Proxy.Models;
+using FandNEL.Proxy.Heypixel;
 using FandNEL.Proxy.Protocol;
+using FandNEL.Proxy.Packet.Minecraft.Nbt;
 using Serilog;
 
 namespace FandNEL.Proxy.Sessions;
@@ -22,6 +25,7 @@ public sealed class MinecraftConnection
     private readonly IEventLoopGroup _workerGroup;
     private readonly PacketRegistry _registry;
     private readonly ProxyOptions _options;
+    private readonly Lazy<HeypixelConnection> _heypixel;
     private readonly Action<string> _onJoined;
     private readonly Action<Exception> _onFailed;
     private readonly CancellationTokenSource _connectionLifetime = new();
@@ -40,6 +44,7 @@ public sealed class MinecraftConnection
         _workerGroup = workerGroup;
         _registry = registry;
         _options = options;
+        _heypixel = new Lazy<HeypixelConnection>(() => new HeypixelConnection(this));
         _onJoined = onJoined;
         _onFailed = onFailed;
         Target = target;
@@ -50,6 +55,9 @@ public sealed class MinecraftConnection
     public ServerTarget Target { get; }
     public PlayerRole Role { get; }
     internal IChannel ClientChannel => _client;
+    internal ProxyOptions Options => _options;
+    internal CancellationToken LifetimeToken => _connectionLifetime.Token;
+    internal HeypixelConnection Heypixel => _heypixel.Value;
     internal bool IsClosed => Volatile.Read(ref _closed) != 0 || !_client.Active;
     public IChannel? ServerChannel { get; private set; }
     public ProtocolVersion Version { get => (ProtocolVersion)Volatile.Read(ref _version); internal set => Volatile.Write(ref _version, (int)value); }
@@ -211,27 +219,23 @@ public sealed class MinecraftConnection
             rsa.ImportSubjectPublicKeyInfo(publicKey, out _);
             var encryptedSecret = rsa.Encrypt(secret, RSAEncryptionPadding.Pkcs1);
             var encryptedToken = rsa.Encrypt(verifyToken, RSAEncryptionPadding.Pkcs1);
-            using var response = new PacketWriter();
-            response.WriteVarInt(1);
+            byte[] response;
             if (Version == ProtocolVersion.V1076)
-                response.WriteUnsignedShort(checked((ushort)encryptedSecret.Length)).WriteBytes(encryptedSecret)
+            {
+                using var legacy = new PacketWriter();
+                legacy.WriteUnsignedShort(checked((ushort)encryptedSecret.Length)).WriteBytes(encryptedSecret)
                     .WriteUnsignedShort(checked((ushort)encryptedToken.Length)).WriteBytes(encryptedToken);
+                response = legacy.ToArray();
+            }
             else
-                response.WriteByteArray(encryptedSecret).WriteByteArray(encryptedToken);
+                response = new EncryptionResponsePacket(encryptedSecret, encryptedToken).Write();
             var channel = ServerChannel ?? throw new IOException("服务端连接已经关闭。");
-            await channel.WriteAndFlushAsync(CreateBuffer(channel, response.ToArray())).ConfigureAwait(false);
+            await SendAsync(PacketDirection.ServerBound, MinecraftPacketIds.Login.ServerboundEncryptionResponse, response, cancellationToken).ConfigureAwait(false);
             channel.Pipeline.AddBefore("frame-decoder", "decrypt", new MinecraftEncryptionDecoder(secret));
             // 与参考实现一致：加密插在分帧编码器之前，出站逆序为压缩 -> 分帧 -> 加密。
             channel.Pipeline.AddBefore("frame-encoder", "encrypt", new MinecraftEncryptionEncoder(secret));
         }
         finally { CryptographicOperations.ZeroMemory(secret); }
-    }
-
-    private static IByteBuffer CreateBuffer(IChannel channel, byte[] bytes)
-    {
-        var buffer = channel.Allocator.Buffer(bytes.Length);
-        buffer.WriteBytes(bytes);
-        return buffer;
     }
 
     internal void NotifyJoined(string username) => _onJoined(username);
@@ -260,9 +264,15 @@ public sealed class MinecraftConnection
             {
                 var message = GetClientErrorMessage(exception);
                 Log.Information("Proxy connection {ConnectionId}: sending login disconnect to client: {Reason}", Id, message);
-                using var writer = new PacketWriter();
-                writer.WriteString(JsonSerializer.Serialize(new { text = message }));
-                await SendAsync(PacketDirection.ClientBound, GetLoginDisconnectPacketId(), writer.ToArray()).ConfigureAwait(false);
+                await SendAsync(PacketDirection.ClientBound, GetLoginDisconnectPacketId(), LoginDisconnectPacket.FromText(message).Write()).ConfigureAwait(false);
+            }
+            else if (HeypixelProtocol.IsEnabled(this) && Version == ProtocolVersion.V1206 && _client.Active
+                && ClientState is ConnectionState.Configuration or ConnectionState.Play)
+            {
+                var packet = new DisconnectPacket(new NbtCompound().Set("text", new NbtString(GetClientErrorMessage(exception))));
+                var packetId = ClientState == ConnectionState.Configuration
+                    ? MinecraftPacketIds.Configuration.ClientboundDisconnect : MinecraftPacketIds.Clientbound.Disconnect;
+                await SendAsync(PacketDirection.ClientBound, packetId, packet.Write()).ConfigureAwait(false);
             }
         }
         catch (Exception sendException)

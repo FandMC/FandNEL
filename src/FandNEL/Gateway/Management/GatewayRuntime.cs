@@ -1,4 +1,3 @@
-using System.IO;
 using FandNEL.Accounts;
 using FandNEL.Core.Protocol;
 using FandNEL.GameLauncher.Models;
@@ -19,14 +18,15 @@ public sealed class GatewayRuntime : IAsyncDisposable
 
         Events = new GatewayEventHub();
         Tokens = new TokenManager(Events);
-        JavaUsers = new UserManager(launcher, accounts.DataDirectory, (userId, token) => Tokens.UpdateToken(userId, token));
+        JavaUsers = accounts.Users;
+        JavaUsers.TokenUpdated += OnJavaTokenUpdated;
+        JavaUsers.TokenRemoved += OnJavaTokenRemoved;
         BedrockUsers = new CppUserManager(accounts.DataDirectory);
-        JavaUsers.ReadUsersFromDisk();
         BedrockUsers.ReadUsersFromDisk();
-        Accounts = new AccountManager(accounts, Tokens, JavaUsers, Events);
+        Accounts = new AccountManager(accounts, Events);
         Sessions = new ProxySessionManager(Events);
         Launchers = new LauncherTaskManager(Events);
-        JavaLauncher = new JavaLauncherService(launcher, new LauncherPaths(Path.Combine(accounts.DataDirectory, "launcher")));
+        JavaLauncher = new JavaLauncherService(launcher, new LauncherPaths(accounts.DataDirectory));
         Catalog = new GameCatalogService(launcher, accounts);
         Games = new GameManager(Accounts, Catalog, proxy, Tokens, Sessions, Launchers, Events);
         WebSocket = new LocalGatewayWebSocketServer(this);
@@ -52,6 +52,10 @@ public sealed class GatewayRuntime : IAsyncDisposable
         await Launchers.DisposeAsync().ConfigureAwait(false);
         await Sessions.DisposeAsync().ConfigureAwait(false);
         await Games.DisposeAsync().ConfigureAwait(false);
-        await JavaUsers.DisposeAsync().ConfigureAwait(false);
+        JavaUsers.TokenUpdated -= OnJavaTokenUpdated;
+        JavaUsers.TokenRemoved -= OnJavaTokenRemoved;
     }
+
+    private void OnJavaTokenUpdated(string userId, string token) => Tokens.UpdateToken(userId, token);
+    private void OnJavaTokenRemoved(string userId) => Tokens.RemoveToken(userId);
 }

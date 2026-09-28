@@ -1,3 +1,4 @@
+using FandNEL.Proxy.Packet.Minecraft.V1206;
 namespace FandNEL.Proxy.Protocol.Builtin;
 
 [RegisterPacket(ConnectionState.Handshaking, PacketDirection.ServerBound, 0)]
@@ -5,11 +6,9 @@ public sealed class HandshakeHandler : IPacketHandler
 {
     public ValueTask HandleAsync(PacketContext context, CancellationToken cancellationToken)
     {
-        var reader = context.CreateReader();
-        var version = (ProtocolVersion)reader.ReadVarInt();
-        _ = reader.ReadString(255);
-        _ = reader.ReadUnsignedShort();
-        var nextState = (ConnectionState)reader.ReadVarInt();
+        var packet = HandshakePacket.Read(context.Payload);
+        var version = (ProtocolVersion)packet.ProtocolVersion;
+        var nextState = (ConnectionState)packet.NextState;
         if (nextState is not (ConnectionState.Status or ConnectionState.Login))
             throw new InvalidDataException($"不支持的 Minecraft 握手状态：{nextState}。");
         if (nextState == ConnectionState.Login && !Enum.IsDefined(version))
@@ -24,10 +23,11 @@ public sealed class HandshakeHandler : IPacketHandler
             <= ProtocolVersion.V1206 => "\0FML3\0",
             _ => "\0FORGE"
         } : string.Empty;
-        using var writer = new PacketWriter();
-        writer.WriteVarInt((int)version).WriteString(connection.Target.Host + suffix, 255)
-            .WriteUnsignedShort(checked((ushort)connection.Target.Port)).WriteVarInt((int)nextState);
-        context.ReplaceRange(0, reader.Position, writer.ToArray());
+        context.ReplacePayload((packet with
+        {
+            ServerAddress = connection.Target.Host + suffix,
+            ServerPort = checked((ushort)connection.Target.Port)
+        }).Write());
         connection.ClientState = nextState;
         connection.ServerState = nextState;
         return ValueTask.CompletedTask;

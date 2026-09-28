@@ -1,36 +1,32 @@
 using System.IO;
 using FandNEL.Core.Authentication;
 using FandNEL.Core.Protocol;
-using FandNEL.Core.Security;
-using FandNEL.Core.Storage;
 using FandNEL.Gateway;
+using FandNEL.Gateway.Management;
 using FandNEL.Protocol.Authentication;
 using UiChallengeHandler = FandNEL.Protocol.Authentication.ILoginChallengeHandler;
 
 namespace FandNEL.Accounts;
 
-/// <summary>只持久化加密的 sauth；游戏 token 在 OTP 激活成功后进入内存。</summary>
+/// <summary>使用 users.json 保存 Java 账号；游戏 token 在 OTP 激活成功后进入内存。</summary>
 public sealed class AccountService : IAccountService, IAsyncDisposable
 {
     private readonly WPFLauncher _launcher;
     private readonly AccountLoginService _login;
-    private readonly IEncryptedStore<List<GatewayAccount>> _store;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<string, JavaAccountSession> _sessions = new();
-    private readonly Dictionary<string, DateTimeOffset> _updated = new();
-    private List<GatewayAccount>? _accounts;
 
     public string DataDirectory { get; }
     public WPFLauncher Launcher => _launcher;
+    public UserManager Users { get; }
 
     public AccountService(WPFLauncher launcher, string dataDirectory)
     {
-        _launcher = launcher;
+        _launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
         _login = new AccountLoginService(launcher);
         Directory.CreateDirectory(dataDirectory);
         DataDirectory = dataDirectory;
-        _store = new EncryptedJsonFileStore<List<GatewayAccount>>(
-            Path.Combine(dataDirectory, "accounts.json.dpapi"), new WindowsDpapiSecretProtector());
+        Users = new UserManager(launcher, dataDirectory);
     }
 
     public async Task<IReadOnlyList<AccountSummary>> ListAsync(CancellationToken cancellationToken = default)
@@ -38,8 +34,8 @@ public sealed class AccountService : IAccountService, IAsyncDisposable
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return (await LoadAsync(cancellationToken).ConfigureAwait(false)).Select(a => new AccountSummary(
-                a.Id, a.Authorized || _sessions.ContainsKey(a.Id), false, a.Channel, a.Type, a.Platform, a.Alias)).ToArray();
+            return Users.GetUsersNoDetails().Select(a => new AccountSummary(
+                a.UserId, a.Authorized, false, a.Channel, a.Type, a.Platform, a.Alias)).ToArray();
         }
         finally { _gate.Release(); }
     }
@@ -57,16 +53,12 @@ public sealed class AccountService : IAccountService, IAsyncDisposable
                 ? await _login.LoginWithCookieAsync(request.Password, cancellationToken).ConfigureAwait(false)
                 : await _login.LoginAsync(request.Channel, request.Account, request.Password,
                     cancellationToken).ConfigureAwait(false);
-            var accounts = (await LoadAsync(cancellationToken).ConfigureAwait(false)).ToList();
-            string alias = accounts.Find(a => a.Id == session.UserId)?.Alias ?? session.DisplayName;
-            accounts.RemoveAll(a => a.Id == session.UserId);
-            accounts.Add(new GatewayAccount
+            string alias = Users.GetUserById(session.UserId)?.Alias ?? session.DisplayName;
+            await SaveUserAsync(new ManagedUser
             {
-                Id = session.UserId, Channel = session.Channel, Type = "cookie", Details = session.Cookie,
+                UserId = session.UserId, Channel = session.Channel, Type = "cookie", Details = session.Cookie,
                 Alias = alias, Authorized = true, Platform = request.Platform
-            });
-            await _store.WriteAsync(accounts, cancellationToken).ConfigureAwait(false);
-            _accounts = accounts;
+            }, cancellationToken).ConfigureAwait(false);
             SaveSession(session);
             return new AccountSession(session.UserId, session.Channel, "cookie", alias, session.Cookie);
         }
@@ -78,22 +70,19 @@ public sealed class AccountService : IAccountService, IAsyncDisposable
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (_sessions.TryGetValue(userId, out var current))
+            var account = Users.GetUserById(userId)
+                ?? throw new InvalidOperationException("请先选择账号。");
+            var available = Users.GetAvailableUser(userId);
+            if (available is not null && _sessions.TryGetValue(userId, out var current))
             {
-                if (DateTimeOffset.UtcNow - _updated[userId] < TimeSpan.FromMinutes(25)) return current;
-                var updated = await _launcher.AuthenticationUpdateAsync(userId, current.Token).ConfigureAwait(false);
+                available = await Users.RefreshAvailableUserAsync(userId, cancellationToken).ConfigureAwait(false)
+                    ?? throw new InvalidOperationException("账号会话已失效，请重新激活。");
                 cancellationToken.ThrowIfCancellationRequested();
-                if (string.IsNullOrWhiteSpace(updated?.Token))
-                {
-                    _sessions.Remove(userId);
-                    throw new InvalidOperationException("账号会话已失效，请重新激活。");
-                }
-                current = current with { Token = updated.Token };
-                SaveSession(current);
+                current = current with { Token = available.AccessToken };
+                _sessions[userId] = current;
                 return current;
             }
-            GatewayAccount account = (await LoadAsync(cancellationToken).ConfigureAwait(false))
-                .Find(a => a.Id == userId) ?? throw new InvalidOperationException("请先选择账号。");
+            _sessions.Remove(userId);
             if (account.Type != "cookie" || !account.Details.TrimStart().StartsWith('{'))
                 throw new InvalidOperationException("旧账号记录缺少完整 sauth，请重新登录一次。");
             var activated = await _login.LoginWithCookieAsync(account.Details, cancellationToken).ConfigureAwait(false);
@@ -107,45 +96,83 @@ public sealed class AccountService : IAccountService, IAsyncDisposable
     public async Task RefreshAsync(string userId, CancellationToken cancellationToken = default) =>
         _ = await GetSessionAsync(userId, cancellationToken).ConfigureAwait(false);
 
-    public Task RenameAsync(string userId, string alias, CancellationToken cancellationToken = default) =>
-        MutateAsync(accounts => (accounts.Find(a => a.Id == userId)
-            ?? throw new KeyNotFoundException("账号不存在。")).Alias = alias.Trim(), cancellationToken);
+    public async Task RenameAsync(string userId, string alias, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var user = Users.GetUserById(userId) ?? throw new KeyNotFoundException("账号不存在。");
+            await SaveUserAsync(new ManagedUser
+            {
+                UserId = user.UserId, Authorized = user.Authorized, AutoLogin = user.AutoLogin,
+                Channel = user.Channel, Type = user.Type, Details = user.Details,
+                Platform = user.Platform, Alias = alias.Trim()
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        finally { _gate.Release(); }
+    }
 
     public async Task RemoveAsync(string userId, CancellationToken cancellationToken = default)
     {
-        await MutateAsync(accounts =>
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            accounts.RemoveAll(a => a.Id == userId);
+            var previous = Users.GetUserById(userId);
+            Users.RemoveUser(userId);
             _sessions.Remove(userId);
-            _updated.Remove(userId);
-        }, cancellationToken).ConfigureAwait(false);
+            try { await Users.SaveUsersToDiskAsync(cancellationToken).ConfigureAwait(false); }
+            catch
+            {
+                if (previous is not null)
+                {
+                    previous.Authorized = false;
+                    Users.AddUser(previous);
+                }
+                throw;
+            }
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task DeactivateAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            _sessions.Remove(userId);
+            Users.RemoveAvailableUser(userId);
+            await Users.SaveUsersToDiskAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally { _gate.Release(); }
     }
 
     private void SaveSession(JavaAccountSession session)
     {
         _sessions[session.UserId] = session;
-        _updated[session.UserId] = DateTimeOffset.UtcNow;
+        var user = Users.GetUserById(session.UserId);
+        if (user is not null) user.Authorized = true;
+        Users.AddUserToMaintain(session.UserId, session.Token);
     }
 
-    private async Task<List<GatewayAccount>> LoadAsync(CancellationToken cancellationToken) =>
-        _accounts ??= await _store.ReadAsync(cancellationToken).ConfigureAwait(false) ?? [];
-
-    private async Task MutateAsync(Action<List<GatewayAccount>> mutation, CancellationToken cancellationToken)
+    private async Task SaveUserAsync(ManagedUser user, CancellationToken cancellationToken)
     {
-        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        var previous = Users.GetUserById(user.UserId);
+        Users.AddUser(user, saveToDisk: false);
         try
         {
-            var accounts = (await LoadAsync(cancellationToken).ConfigureAwait(false)).Select(a => a with { }).ToList();
-            mutation(accounts);
-            await _store.WriteAsync(accounts, cancellationToken).ConfigureAwait(false);
-            _accounts = accounts;
+            await Users.SaveUsersToDiskAsync(cancellationToken).ConfigureAwait(false);
         }
-        finally { _gate.Release(); }
+        catch
+        {
+            if (previous is null) Users.RemoveUser(user.UserId);
+            else Users.AddUser(previous);
+            throw;
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
-        await _store.DisposeAsync().ConfigureAwait(false);
+        await Users.DisposeAsync().ConfigureAwait(false);
         _sessions.Clear();
         _gate.Dispose();
     }

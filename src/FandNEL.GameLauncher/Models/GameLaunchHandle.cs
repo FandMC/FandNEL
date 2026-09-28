@@ -4,7 +4,7 @@ using FandNEL.GameLauncher.Services;
 namespace FandNEL.GameLauncher.Models;
 
 /// <summary>已启动游戏及其代理资源的生命周期句柄。</summary>
-public sealed class GameLaunchHandle : IAsyncDisposable
+public sealed class GameLaunchHandle : IGameLaunchHandle
 {
     private readonly IGameProcess _process;
     private readonly IProxyLease? _proxyLease;

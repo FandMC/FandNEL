@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
+using System.Net.Sockets;
 using DotNetty.Buffers;
 using DotNetty.Transport.Bootstrapping;
 using DotNetty.Transport.Channels;
@@ -58,36 +59,84 @@ public sealed class ProxySession : IProxySession
 
     internal async Task StartAsync(IEventLoopGroup acceptorGroup, CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
+        using var startup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _lifetime.Token);
+        startup.Token.ThrowIfCancellationRequested();
         lock (_stateLock)
         {
             if (_state != ProxySessionState.Created) throw new InvalidOperationException("代理会话已经启动。");
             _registry = new PacketRegistry();
         }
         _initialOptions.ConfigureRegistry?.Invoke(_registry);
-        var bootstrap = new ServerBootstrap()
-            .Group(acceptorGroup, _workerGroup)
-            .Channel<TcpServerSocketChannel>()
-            .Option(ChannelOption.SoReuseaddr, true)
-            .Option(ChannelOption.TcpNodelay, true)
-            .Option(ChannelOption.SoKeepalive, true)
-            .Option(ChannelOption.Allocator, PooledByteBufferAllocator.Default)
-            .ChildHandler(new ActionChannelInitializer<IChannel>(channel =>
-                channel.Pipeline.AddLast("connection", new ProxyClientHandler(this))));
+        IChannel? listener = null;
         try
         {
-            _listener = await bootstrap.BindAsync(new IPEndPoint(_initialOptions.ListenAddress, _initialOptions.ListenPort)).ConfigureAwait(false);
-            _localEndpoint = (IPEndPoint)_listener.LocalAddress;
-            lock (_stateLock) _state = ProxySessionState.Running;
+            listener = await BindListenerAsync(acceptorGroup, startup.Token).ConfigureAwait(false);
+            lock (_stateLock)
+            {
+                startup.Token.ThrowIfCancellationRequested();
+                if (_state != ProxySessionState.Created) throw new OperationCanceledException("代理会话已停止启动。", startup.Token);
+                _listener = listener;
+                _localEndpoint = (IPEndPoint)listener.LocalAddress;
+                _state = ProxySessionState.Running;
+            }
             if (_initialOptions.EnableLanBroadcast)
                 _lanDiscovery = new LanDiscoveryBroadcaster(_target, _role, _localEndpoint.Port, _initialOptions.LanMotd);
             Publish(ProxyEventKind.Started);
         }
         catch (Exception exception)
         {
+            if (listener is not null) await listener.CloseAsync().ConfigureAwait(false);
             SetFault(exception);
             throw;
         }
+    }
+
+    private async Task<IChannel> BindListenerAsync(IEventLoopGroup acceptorGroup, CancellationToken cancellationToken)
+    {
+        IServerChannel? pendingChannel = null;
+        var bootstrap = new ServerBootstrap()
+            .Group(acceptorGroup, _workerGroup)
+            .ChannelFactory(() => pendingChannel = new TcpServerSocketChannel())
+            .Option(ChannelOption.SoReuseaddr, false)
+            .Option(ChannelOption.TcpNodelay, true)
+            .Option(ChannelOption.SoKeepalive, true)
+            .Option(ChannelOption.Allocator, PooledByteBufferAllocator.Default)
+            .ChildHandler(new ActionChannelInitializer<IChannel>(channel =>
+                channel.Pipeline.AddLast("connection", new ProxyClientHandler(this))));
+        var firstPort = _initialOptions.ListenPort == 0 ? ProxyOptions.DefaultListenPort : _initialOptions.ListenPort;
+        for (var port = firstPort; ; port++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            pendingChannel = null;
+            try
+            {
+                // 直接绑定并持有端口，避免先探测可用端口造成并发竞争。
+                return await bootstrap.BindAsync(new IPEndPoint(_initialOptions.ListenAddress, port)).ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                if (pendingChannel is not null)
+                {
+                    if (pendingChannel.Registered) await pendingChannel.CloseAsync().ConfigureAwait(false);
+                    else pendingChannel.Unsafe.CloseForcibly();
+                }
+
+                if (!IsUnavailablePort(exception)) throw;
+                if (port == IPEndPoint.MaxPort)
+                    throw new IOException($"监听端口范围 {firstPort}–{IPEndPoint.MaxPort} 已全部占用或不可用。", exception);
+            }
+        }
+    }
+
+    private static bool IsUnavailablePort(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            // Windows 的独占监听或保留端口也可能返回 AccessDenied。
+            if (current is SocketException socket)
+                return socket.SocketErrorCode is SocketError.AddressAlreadyInUse or SocketError.AccessDenied;
+        }
+        return false;
     }
 
     public Task UpdateServerAsync(ServerTarget target, CancellationToken cancellationToken = default)

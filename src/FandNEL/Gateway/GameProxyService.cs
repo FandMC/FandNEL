@@ -1,6 +1,9 @@
 using System.Net;
+using System.IO;
 using FandNEL.Accounts;
 using FandNEL.Core.Connection;
+using FandNEL.GameLauncher.Models;
+using FandNEL.Proxy.Heypixel;
 using FandNEL.Proxy.Irc;
 using FandNEL.Proxy.Models;
 using FandNEL.Proxy.Services;
@@ -21,6 +24,8 @@ public sealed class GameProxyService(AccountService accounts) : IAsyncDisposable
         var session = await accounts.GetSessionAsync(request.UserId, cancellationToken).ConfigureAwait(false);
         if (!int.TryParse(session.UserId, out var numericUserId))
             throw new InvalidOperationException("网易账号 ID 不是有效的数字。");
+        // 监听会话会跨越多次 token 刷新，鉴权时再读取该账号的当前凭据。
+        Func<string> getAccessToken = () => accounts.Users.GetAccessToken(request.UserId);
 
         // 游戏内 IRC：匿名聊天室只把本局游戏 ID 作为显示名，不发送账号、密码或设备标识。
         var ircOptions = new IrcChatOptions();
@@ -30,6 +35,7 @@ public sealed class GameProxyService(AccountService accounts) : IAsyncDisposable
 
         try
         {
+            var launcherPaths = new LauncherPaths(accounts.DataDirectory);
             var proxy = await _host.StartAsync(new ProxyOptions
             {
                 ListenAddress = request.ListenAddress,
@@ -39,16 +45,24 @@ public sealed class GameProxyService(AccountService accounts) : IAsyncDisposable
                 GameVersion = request.GameVersion,
                 ModInfo = request.ModInfo,
                 UserId = request.UserId,
-                AccessToken = session.Token,
+                AccessTokenProvider = getAccessToken,
                 Role = request.Role,
                 RentalServerId = request.RentalServerId,
                 Socks5 = request.Socks5,
                 EnableLanBroadcast = request.EnableLanBroadcast,
                 LanMotd = request.LanMotd,
                 AddForgeHandshakeSuffix = request.AddForgeHandshakeSuffix,
+                Heypixel = new HeypixelOptions
+                {
+                    ModDirectories =
+                    [
+                        launcherPaths.CoreMods(request.GameId),
+                        Path.Combine(launcherPaths.GameAssets(request.GameId), ".minecraft", "mods")
+                    ]
+                },
                 JoinServerAsync = (serverId, ct) => NetEaseConnection.AuthenticateAsync(
                     new JavaJoinRequest(serverId, request.GameId, request.GameVersion, request.ModInfo,
-                        request.NexusToken, numericUserId, session.Token), ct),
+                        request.NexusToken, numericUserId, getAccessToken()), ct),
                 ConfigureRegistry = irc is null ? null : irc.AttachRegistry
             }, cancellationToken).ConfigureAwait(false);
 
@@ -80,7 +94,7 @@ public sealed record GameProxyRequest
     public required ServerTarget Target { get; init; }
     public PlayerRole Role { get; init; } = PlayerRole.Guest;
     public IPAddress ListenAddress { get; init; } = IPAddress.Loopback;
-    public int ListenPort { get; init; }
+    public int ListenPort { get; init; } = ProxyOptions.DefaultListenPort;
     public string? RentalServerId { get; init; }
     public Socks5Options? Socks5 { get; init; }
     public bool EnableLanBroadcast { get; init; }

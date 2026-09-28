@@ -1,0 +1,84 @@
+using FandNEL.Proxy.Packet.IO;
+using FandNEL.Proxy.Packet.Minecraft.Nbt;
+
+namespace FandNEL.Proxy.Packet.Minecraft.V1206;
+
+public enum ScoreNumberFormatKind { Blank, Styled, Fixed }
+
+public sealed record ScoreNumberFormat(ScoreNumberFormatKind Kind, NbtTag? Content)
+{
+    internal static ScoreNumberFormat? ReadOptional(PacketReader reader)
+    {
+        if (!reader.ReadBoolean()) return null;
+        var kind = (ScoreNumberFormatKind)reader.ReadVarInt();
+        return kind switch
+        {
+            ScoreNumberFormatKind.Blank => new(kind, null),
+            ScoreNumberFormatKind.Styled => new(kind, reader.ReadNetworkNbtCompound()),
+            ScoreNumberFormatKind.Fixed => new(kind, reader.ReadNetworkNbt()),
+            _ => throw new InvalidDataException("计分板数字格式无效。")
+        };
+    }
+}
+
+public sealed record DisplayObjectivePacket(int Slot, string ObjectiveName)
+{
+    public static DisplayObjectivePacket Read(ReadOnlyMemory<byte> payload)
+    {
+        var reader = new PacketReader(payload);
+        var packet = new DisplayObjectivePacket(reader.ReadVarInt(), reader.ReadString());
+        if (packet.Slot is < 0 or > 18) throw new InvalidDataException("计分板显示槽位无效。");
+        MinecraftPacketValidation.RequireEnd(reader);
+        return packet;
+    }
+}
+
+public sealed record SetObjectivePacket(string Name, byte Mode, NbtTag? DisplayName, int? RenderType, ScoreNumberFormat? NumberFormat)
+{
+    public static SetObjectivePacket Read(ReadOnlyMemory<byte> payload)
+    {
+        var reader = new PacketReader(payload);
+        var name = reader.ReadString();
+        var mode = reader.ReadByte();
+        if (mode > 2) throw new InvalidDataException("计分板目标操作无效。");
+        NbtTag? displayName = null;
+        int? renderType = null;
+        ScoreNumberFormat? numberFormat = null;
+        if (mode != 1)
+        {
+            displayName = reader.ReadNetworkNbt();
+            renderType = reader.ReadVarInt();
+            if (renderType is not (0 or 1)) throw new InvalidDataException("计分板渲染类型无效。");
+            numberFormat = ScoreNumberFormat.ReadOptional(reader);
+        }
+        MinecraftPacketValidation.RequireEnd(reader);
+        return new(name, mode, displayName, renderType, numberFormat);
+    }
+}
+
+public sealed record SetScorePacket(string Owner, string ObjectiveName, int Value, NbtTag? DisplayName, ScoreNumberFormat? NumberFormat)
+{
+    public static SetScorePacket Read(ReadOnlyMemory<byte> payload)
+    {
+        var reader = new PacketReader(payload);
+        var owner = reader.ReadString();
+        var objective = reader.ReadString();
+        var value = reader.ReadVarInt();
+        var displayName = reader.ReadBoolean() ? reader.ReadNetworkNbt() : null;
+        var numberFormat = ScoreNumberFormat.ReadOptional(reader);
+        MinecraftPacketValidation.RequireEnd(reader);
+        return new(owner, objective, value, displayName, numberFormat);
+    }
+}
+
+public sealed record ResetScorePacket(string Owner, string? ObjectiveName)
+{
+    public static ResetScorePacket Read(ReadOnlyMemory<byte> payload)
+    {
+        var reader = new PacketReader(payload);
+        var owner = reader.ReadString();
+        var objective = reader.ReadBoolean() ? reader.ReadString() : null;
+        MinecraftPacketValidation.RequireEnd(reader);
+        return new(owner, objective);
+    }
+}

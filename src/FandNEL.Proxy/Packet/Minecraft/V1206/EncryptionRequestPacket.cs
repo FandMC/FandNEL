@@ -1,0 +1,20 @@
+using FandNEL.Proxy.Packet.IO;
+
+namespace FandNEL.Proxy.Packet.Minecraft.V1206;
+
+public sealed record EncryptionRequestPacket(string ServerId, byte[] PublicKey, byte[] VerifyToken, bool ShouldAuthenticate)
+{
+    public static EncryptionRequestPacket Read(ReadOnlyMemory<byte> payload)
+    {
+        var reader = new PacketReader(payload);
+        var packet = new EncryptionRequestPacket(reader.ReadString(20), reader.ReadByteArray(4096), reader.ReadByteArray(4096), reader.ReadBoolean());
+        if (reader.Remaining != 0) throw new InvalidDataException("Encryption Request 包末尾存在多余数据。");
+        return packet;
+    }
+
+    public byte[] Write()
+    {
+        using var writer = new PacketWriter();
+        return writer.WriteString(ServerId, 20).WriteByteArray(PublicKey).WriteByteArray(VerifyToken).WriteBoolean(ShouldAuthenticate).ToArray();
+    }
+}

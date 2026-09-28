@@ -1,6 +1,8 @@
+using FandNEL.Proxy.Packet.IO;
+using FandNEL.Proxy.Packet.Minecraft.V1206;
 using System.Text.Json;
 using FandNEL.Proxy.Protocol;
-using FandNEL.Proxy.Protocol.Nbt;
+using FandNEL.Proxy.Packet.Minecraft.Nbt;
 
 namespace FandNEL.Proxy.Irc;
 
@@ -10,6 +12,8 @@ internal static class IrcChatPayloads
     internal static byte[] BuildSystemChat(ProtocolVersion version, string text)
     {
         var safe = SingleLine(text);
+        if (version == ProtocolVersion.V1206)
+            return new SystemChatPacket(new NbtCompound().Set(IrcConstants.TextComponentField, new NbtString(safe)), false).Write();
         using var writer = new PacketWriter();
         if (version >= ProtocolVersion.V1206)
             return BuildNetworkText(writer, safe);

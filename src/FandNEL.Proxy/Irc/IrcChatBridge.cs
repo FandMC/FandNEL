@@ -46,8 +46,6 @@ public sealed class IrcChatBridge : IAsyncDisposable
                     return ValueTask.CompletedTask;
                 }, [spec.Version]);
         }
-
-        Log.Information("IRC: interceptors attached for {VersionCount} protocol versions", IrcProtocol.Specs.Count);
     }
 
     /// <summary>绑定代理会话生命周期：会话停止或出错时自动停止轮询。</summary>

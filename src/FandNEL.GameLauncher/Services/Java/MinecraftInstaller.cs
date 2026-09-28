@@ -15,14 +15,14 @@ internal sealed class MinecraftInstaller(WPFLauncher launcher, LauncherPaths pat
 
     public async Task PrepareClientAsync(JavaLaunchRequest request, IProgress<LaunchProgress>? progress, CancellationToken cancellationToken)
     {
-        var baseResponse = await launcher.GetMinecraftClientLibsAsync(request.UserId, request.UserToken).ConfigureAwait(false);
+        var baseResponse = await launcher.GetMinecraftClientLibsAsync(request.UserId, request.GetUserToken()).ConfigureAwait(false);
         if (baseResponse.Code != 0 || baseResponse.Data is null)
             throw new InvalidOperationException($"获取基础游戏资源失败：{baseResponse.Message}");
         var basePackage = baseResponse.Data;
         await _archives.InstallAsync(basePackage.Url, Path.Combine(paths.Cache, "GameBase.7z"), paths.GameBase,
             basePackage.Md5, progress, cancellationToken).ConfigureAwait(false);
 
-        var response = await launcher.GetMinecraftClientLibsAsync(request.UserId, request.UserToken, request.GameVersion).ConfigureAwait(false);
+        var response = await launcher.GetMinecraftClientLibsAsync(request.UserId, request.GetUserToken(), request.GameVersion).ConfigureAwait(false);
         if (response.Code != 0 || response.Data is null)
             throw new InvalidOperationException($"获取游戏版本资源失败：{response.Message}");
         var versionPackage = response.Data;
@@ -37,11 +37,11 @@ internal sealed class MinecraftInstaller(WPFLauncher launcher, LauncherPaths pat
     public async Task<EntityModsList> PrepareModsAsync(JavaLaunchRequest request, IProgress<LaunchProgress>? progress, CancellationToken cancellationToken)
     {
         var mods = new EntityModsList();
-        var response = await launcher.GetGameCoreModListAsync(request.UserId, request.UserToken, request.GameVersion,
+        var response = await launcher.GetGameCoreModListAsync(request.UserId, request.GetUserToken(), request.GameVersion,
             request.GameType == EnumGType.ServerGame).ConfigureAwait(false);
         if (response.Code != 0 || response.Data?.IidList is null)
             throw new InvalidOperationException($"获取核心模组列表失败：{response.Message}");
-        var details = await launcher.GetGameCoreModDetailsListAsync(request.UserId, request.UserToken, response.Data.IidList).ConfigureAwait(false);
+        var details = await launcher.GetGameCoreModDetailsListAsync(request.UserId, request.GetUserToken(), response.Data.IidList).ConfigureAwait(false);
         if (details.Code != 0 || details.Data is null)
             throw new InvalidOperationException($"获取核心模组资源失败：{details.Message}");
 
@@ -83,7 +83,7 @@ internal sealed class MinecraftInstaller(WPFLauncher launcher, LauncherPaths pat
                 });
         }
 
-        var assets = await launcher.GetNetGameComponentDownloadListAsync(request.UserId, request.UserToken, request.GameId).ConfigureAwait(false);
+        var assets = await launcher.GetNetGameComponentDownloadListAsync(request.UserId, request.GetUserToken(), request.GameId).ConfigureAwait(false);
         if (assets.Code != 0 || assets.Data is null)
         {
             if (request.GameType == EnumGType.NetGame)

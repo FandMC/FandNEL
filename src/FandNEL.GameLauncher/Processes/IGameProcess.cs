@@ -4,6 +4,7 @@ public interface IGameProcess : IAsyncDisposable
 {
     int ProcessId { get; }
     bool HasExited { get; }
+    int? ExitCode => null;
     Task WaitForExitAsync(CancellationToken cancellationToken = default);
     Task StopAsync(CancellationToken cancellationToken = default);
 }

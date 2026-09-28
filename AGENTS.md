@@ -11,7 +11,6 @@
 - 游戏启动器：`src/FandNEL.GameLauncher`
 - 前端源码：`ui/react-project`
 - 后端内置前端产物：`src/FandNEL/wwwroot`
-- 协议回归检查：`tests/FandNEL.Gateway.ProtocolChecks`
 
 以下项目仅供只读参考，不得直接修改：
 
@@ -22,7 +21,7 @@
 ## 每次修改前
 
 1. 查看 `git status --short --branch`，区分用户已有修改与本次修改。
-2. 先读取相关源文件、调用方、协议定义及已有检查，再确定修改范围。
+2. 先读取相关源文件、调用方及协议定义，再确定修改范围。
 3. 不使用 `git reset`、`git checkout`、强制覆盖或删除用户已有修改。
 4. 默认不执行提交、推送、分支创建或分支切换；仅在用户明确授权相应操作后执行。授权在同一任务、同一目标和已说明的影响范围内持续有效，重试与验证不重复索要确认。
 5. 不修改与当前问题无关的 UI。前端及其构建产物默认不变。
@@ -40,6 +39,15 @@
 - 遵循 SOLID、KISS、DRY、YAGNI 和现有项目风格，保持修改范围小、便于回滚。
 - 先复用现有解析器、协议类型和错误处理方式，不添加没有实际用途的抽象。
 - 对外协议字段集中管理，避免在不同入口重复解析或散落硬编码字段。
+- 前端固定文案默认使用简体中文；左侧导航、账号渠道与类型、账号在线/离线状态及筛选、添加账号的登录方式标签保留原英文。其他协议值仅在展示层映射，不得汉化路由、请求字段、存储键或条件判断值。保留品牌、技术名称和用户/服务器提供的内容；经用户明确要求进行 UI 修改后，构建并同步内置前端产物。
+- Java 版网络服务器和租赁服详情共用网络服务器的详情布局；租赁服只替换详情数据字段，不单独维护另一套展示结构。
+- `query_game_session` 的 Java `Interceptor` 条目中，`name` 和 `guid` 均为会话 GUID 字符串；`name` 用于配置页导航，不能替换为游戏 ID 或显示名称。游戏 ID 从配置响应的 `game_id` 获取。
+- Proxy 从 `ProxyOptions.DefaultListenPort`（20018）或指定起始端口直接尝试绑定，冲突逐个递增；旧调用传 `0` 也使用默认起点，不能回退为系统随机端口。
+- Java 启动任务在账号检查前登记；Games 列表与 `launch_progress` 共用 `GameSessionMessages` 的任务 ID 和进度字段。失败通过通知和任务快照保留，取消/退出必须释放资源，WebSocket 断开只停止通知。
+- `users.json`、`cppusers.json`、`.game_cache` 和 `resources` 使用 `AppContext.BaseDirectory` 作为根目录，与程序文件同级；启动器与 Proxy 必须使用同一根目录。复制完成并核对一致后删除对应旧文件；目标缺失、内容冲突或锁定时保留尚未确认的旧文件，不覆盖新位置已有数据。
+- Java 登录、激活、别名及删除共用唯一 `UserManager` 的 `users.json`，不再使用或创建 `accounts.json.dpapi`。新账号仓库成功读取后清理新旧位置的废弃 DPAPI 文件及其锁文件，不恢复两套账号存储。
+- Java token 由 `UserManager` 统一刷新，同账号的前台与后台刷新必须串行并复核会话版本；失败不得清除或覆盖并发新会话，也不得更新最后成功刷新时间。Proxy 入服、Authlib 和启动器后续请求在使用时按账号读取当前 token，不捕获启动时快照；账号停用后旧通道不得回退旧凭据或自动激活账号。
+- Minecraft 1.20.6 位置校正包的 `Flags` 保留完整字节，玩家状态只解释低五位相对坐标/角度标志；不得因未识别的高位中断代理或清除原包标志。保留载荷边界及有限坐标校验，修改后人工回归末影珍珠和服务器传送。
 - 使用明确异常或结构化错误响应，避免吞掉会影响业务结果的错误。
 - 日志保持低噪声，不输出令牌、密码及其他敏感信息，不永久添加刷屏调试日志。
 - 保留现有中文和英文日志风格，代码注释语言与所在文件保持一致。
@@ -53,13 +61,9 @@
 dotnet build "C:/Users/winme/Documents/ChatGPT/FandNEL/src/FandNEL/FandNEL.csproj" --no-restore
 ```
 
-涉及 Gateway、认证、角色、WebSocket 或 NBT 行为时，按变更范围运行现有协议检查：
+按用户要求，项目不再保留 `tests` 目录，不新增或运行自动化测试。通过源代码审阅和后端构建验证修改；未经用户重新要求，不恢复测试工程。
 
-```powershell
-dotnet run --project "C:/Users/winme/Documents/ChatGPT/FandNEL/tests/FandNEL.Gateway.ProtocolChecks/FandNEL.Gateway.ProtocolChecks.csproj" --no-restore
-```
-
-该检查不等于真实账号、真实游戏服务器或 IRC 聊天室联调。报告时区分编译、自动化检查与实际运行结果。
+编译通过不等于真实账号、真实游戏服务器或 IRC 聊天室联调成功。报告时区分编译与实际运行结果。
 
 默认不构建前端。只有明确确认前端协议确实错误且需要修改前端时，才在 `ui/react-project` 执行 `npm run build`，并将构建产物同步到 `src/FandNEL/wwwroot`。
 

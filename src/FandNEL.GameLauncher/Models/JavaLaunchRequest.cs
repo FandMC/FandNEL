@@ -8,6 +8,7 @@ public sealed record JavaLaunchRequest
 {
     public required string UserId { get; init; }
     public required string UserToken { get; init; }
+    public Func<string>? UserTokenProvider { get; init; }
     public required string GameId { get; init; }
     public required string RoleName { get; init; }
     public required EnumGameVersion GameVersion { get; init; }
@@ -18,6 +19,14 @@ public sealed record JavaLaunchRequest
     public bool LoadCoreMods { get; init; } = true;
     public string ProtocolVersion { get; init; } = string.Empty;
     public string? JavaExecutable { get; init; }
+
+    public string GetUserToken()
+    {
+        var token = UserTokenProvider is { } provider ? provider() : UserToken;
+        if (string.IsNullOrWhiteSpace(token))
+            throw new InvalidOperationException("未找到对应用户的网易游戏令牌。");
+        return token;
+    }
 
     public void Validate()
     {

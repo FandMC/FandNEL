@@ -52,7 +52,7 @@ internal static class MinecraftCommandBuilder
         var arguments = new List<string>
         {
             $"-DlauncherControlPort={authPort}", $"-DlauncherGameId={request.GameId}", $"-DuserId={request.UserId}",
-            "-DToken=" + TokenUtil.GenerateEncryptToken(request.UserToken), "-DServer=RELEASE",
+            "-DToken=" + TokenUtil.GenerateEncryptToken(request.GetUserToken()), "-DServer=RELEASE",
             $"-Xmx{request.MaxMemoryMb}M", "-Xmn128M",
             "-Djava.library.path=" + Path.Combine(versionRoot, "natives"),
             "-Druntime_path=" + Path.Combine(versionRoot, "natives", "runtime")

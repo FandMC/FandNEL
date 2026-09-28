@@ -182,6 +182,11 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
         using var serverKey = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
         byte[]? sessionKey = null;
         string? identify = null;
+        await using var launchNotifications = new LauncherTaskNotifications(_runtime, async (type, payload) =>
+        {
+            if (sessionKey is not null)
+                await SendAsync(socket, type, payload, null, sessionKey, cancellationToken).ConfigureAwait(false);
+        }, cancellationToken);
         while (socket.State == WebSocketState.Open && !cancellationToken.IsCancellationRequested)
         {
             var wireBytes = await ReceiveMessageAsync(socket, cancellationToken).ConfigureAwait(false);
@@ -227,6 +232,8 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
                 continue;
             }
 
+            // 收到加密请求后再推送，确保浏览器已完成异步密钥派生。
+            launchNotifications.Enable();
             try { await DispatchAsync(socket, message, identify, sessionKey, cancellationToken).ConfigureAwait(false); }
             catch (BedrockAccountNotActivatedException exception)
             {
@@ -242,9 +249,16 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
                     await SendAsync(socket, "error_notification", $"创建角色失败: {exception.Message}", identify, sessionKey, cancellationToken).ConfigureAwait(false);
                     await SendAsync(socket, "create_role", string.Empty, identify, sessionKey, cancellationToken).ConfigureAwait(false);
                 }
-                else if (message.Type == "join_game")
+                else if (message.Type is "join_game" or "launch_game" or "cancel_game_session")
                 {
                     await SendAsync(socket, "error_notification", exception.Message, identify, sessionKey, cancellationToken).ConfigureAwait(false);
+                    if (message.Type == "cancel_game_session")
+                        await SendAsync(socket, "query_game_session", SerializeGameSessions(), identify, sessionKey, cancellationToken).ConfigureAwait(false);
+                }
+                else if (message.Type is "user_inactive" or "delete_user" or "update_user_alias")
+                {
+                    await SendAsync(socket, "error_notification", exception.Message, identify, sessionKey, cancellationToken).ConfigureAwait(false);
+                    await SendAsync(socket, "get_accounts", SerializeAccounts(string.Empty), identify, sessionKey, cancellationToken).ConfigureAwait(false);
                 }
                 else if (message.Type.StartsWith("java_edition/", StringComparison.Ordinal)
                          && message.Type.Contains("skin", StringComparison.OrdinalIgnoreCase))
@@ -311,15 +325,15 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
                 await SendAsync(socket, "get_accounts", SerializeAccounts(message.Payload), identify, key, cancellationToken).ConfigureAwait(false);
                 break;
             case "user_inactive":
-                _runtime.JavaUsers.RemoveAvailableUser(message.Payload ?? string.Empty);
+                await _runtime.Accounts.DeactivateAsync(message.Payload ?? string.Empty, cancellationToken).ConfigureAwait(false);
                 _runtime.BedrockUsers.RemoveAvailableUser(message.Payload ?? string.Empty);
                 await SendAsync(socket, "get_accounts", SerializeAccounts(string.Empty), identify, key, cancellationToken).ConfigureAwait(false);
                 break;
             case "update_user_alias":
-                UpdateAlias(message.Payload);
+                await UpdateAliasAsync(message.Payload, cancellationToken).ConfigureAwait(false);
                 break;
             case "delete_user":
-                DeleteUser(message.Payload);
+                await DeleteUserAsync(message.Payload, cancellationToken).ConfigureAwait(false);
                 await SendAsync(socket, "get_accounts", SerializeAccounts(string.Empty), identify, key, cancellationToken).ConfigureAwait(false);
                 break;
             case "login":
@@ -357,7 +371,6 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
             GameVersion = request.Version,
             Target = new ServerTarget(request.ServerIp, request.ServerPort),
             Role = new PlayerRole(request.Role),
-            ListenPort = 0,
             RentalServerId = request.VersionId == RentalVersionId ? request.GameId : null,
             Socks5 = socks5,
         }, cancellationToken).ConfigureAwait(false);
@@ -380,37 +393,30 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
         if (!Enum.IsDefined(gameVersion) || gameVersion is EnumGameVersion.NONE or EnumGameVersion.V_CPP or EnumGameVersion.V_X64_CPP or EnumGameVersion.V_RTX)
             throw new ArgumentException("不支持的 Java 游戏版本。");
 
-        var session = await _runtime.Accounts.GetSessionAsync(request.UserId, cancellationToken).ConfigureAwait(false);
-        var launchRequest = new JavaLaunchRequest
-        {
-            UserId = request.UserId,
-            UserToken = session.Token,
-            GameId = request.GameId,
-            RoleName = request.RoleName,
-            GameVersion = gameVersion,
-            ServerHost = request.ServerIp,
-            ServerPort = request.ServerPort,
-            GameType = (EnumGType)request.GameType,
-            MaxMemoryMb = request.MaxGameMemory,
-            LoadCoreMods = request.LoadCoreMods,
-            ProtocolVersion = request.GameVersion
-        };
-        var progress = new Progress<LaunchProgress>(value =>
-            _ = SendAsync(socket, "launch_progress", JsonSerializer.Serialize(new { stage = value.Stage.ToString(), message = value.Message }, JsonOptions), identify, key, CancellationToken.None));
-        _ = Task.Run(async () =>
-        {
-            try
+        // 账号刷新也属于启动任务，必须先登记，让耗时操作可见、可取消。
+        _runtime.Launchers.Start(request.GameId, request.GameVersion, request.GameName, request.RoleName,
+            request.GameType == (int)EnumGType.ServerGame, async (progress, token) =>
             {
-                await using var handle = await _runtime.JavaLauncher.LaunchAsync(launchRequest, progress, CancellationToken.None).ConfigureAwait(false);
-                await SendAsync(socket, "launch_game/success", JsonSerializer.Serialize(new { process_id = handle.ProcessId }, JsonOptions), identify, key, CancellationToken.None).ConfigureAwait(false);
-                await handle.WaitForExitAsync().ConfigureAwait(false);
-            }
-            catch (Exception exception)
-            {
-                Log.Error(exception, "Java game launch failed for {UserId}", request.UserId);
-                try { await SendAsync(socket, "error_notification", $"启动游戏失败: {exception.Message}", identify, key, CancellationToken.None).ConfigureAwait(false); } catch { }
-            }
-        });
+                progress.Report(new LaunchProgress(LaunchStage.Preparing, "正在检查 Java 账号。"));
+                var session = await _runtime.Accounts.GetSessionAsync(request.UserId, token).ConfigureAwait(false);
+                var launchRequest = new JavaLaunchRequest
+                {
+                    UserId = request.UserId,
+                    UserToken = session.Token,
+                    UserTokenProvider = () => _runtime.JavaUsers.GetAccessToken(request.UserId),
+                    GameId = request.GameId,
+                    RoleName = request.RoleName,
+                    GameVersion = gameVersion,
+                    ServerHost = request.ServerIp,
+                    ServerPort = request.ServerPort,
+                    GameType = (EnumGType)request.GameType,
+                    MaxMemoryMb = request.MaxGameMemory,
+                    LoadCoreMods = request.LoadCoreMods,
+                    ProtocolVersion = request.GameVersion
+                };
+                return await _runtime.JavaLauncher.LaunchAsync(launchRequest, progress, token).ConfigureAwait(false);
+            });
+        await SendAsync(socket, "success_notification", "已开始准备游戏，可在 Games 页面查看进度。", identify, key, cancellationToken).ConfigureAwait(false);
         await SendAsync(socket, "launch_game", string.Empty, identify, key, cancellationToken).ConfigureAwait(false);
     }
 
@@ -490,28 +496,7 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
 
     private string SerializeGameSessions()
     {
-        var sessions = _runtime.Sessions.GetSnapshots().Select(session => new
-        {
-            id = $"interceptor-{session.Id}",
-            name = session.GameId ?? session.Id.ToString(),
-            game_type = "Java",
-            is_rental = !string.IsNullOrWhiteSpace(session.RentalServerId),
-            server_name = session.Target.Host,
-            guid = session.Id.ToString(),
-            character_name = session.Role.Name,
-            server_version = session.GameVersion ?? string.Empty,
-            status_text = session.State switch
-            {
-                FandNEL.Proxy.Models.ProxySessionState.Running => "Running",
-                FandNEL.Proxy.Models.ProxySessionState.Faulted => "Failed",
-                FandNEL.Proxy.Models.ProxySessionState.Stopping => "Stopping",
-                _ => "Stopped"
-            },
-            type = "Interceptor",
-            progress_value = session.State == FandNEL.Proxy.Models.ProxySessionState.Running ? 100 : 0,
-            local_address = session.LocalEndpoint?.ToString() ?? string.Empty
-        });
-        return JsonSerializer.Serialize(sessions, JsonOptions);
+        return GameSessionMessages.Serialize(_runtime.Sessions.GetSnapshots(), _runtime.Launchers.GetSnapshots());
     }
 
     private async Task CancelGameSessionAsync(WebSocket socket, string? payload, string? identify, byte[] key,
@@ -526,30 +511,42 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
             : [document.RootElement.ToString()];
         foreach (var value in ids)
             if (Guid.TryParse(value, out var id))
+            {
                 await _runtime.Sessions.StopAsync(id, cancellationToken).ConfigureAwait(false);
+                await _runtime.Launchers.StopAsync(id, cancellationToken).ConfigureAwait(false);
+            }
 
         await SendAsync(socket, "query_game_session", SerializeGameSessions(), identify, key, cancellationToken).ConfigureAwait(false);
     }
 
-    private void UpdateAlias(string? payload)
+    private async Task UpdateAliasAsync(string? payload, CancellationToken cancellationToken)
     {
         var request = JsonSerializer.Deserialize<AliasRequest>(payload ?? string.Empty, JsonOptions)
             ?? throw new InvalidOperationException("无效的账号别名请求。");
         var platform = (GatewayPlatform)request.Platform;
-        var user = platform == GatewayPlatform.Mobile ? _runtime.BedrockUsers.GetUserById(request.Id) : _runtime.JavaUsers.GetUserById(request.Id);
-        if (user is null) return;
-        user.Alias = request.Alias?.Trim() ?? string.Empty;
-        if (platform == GatewayPlatform.Mobile) _runtime.BedrockUsers.SaveUsersToDisk();
-        else _runtime.JavaUsers.MarkDirtyAndScheduleSave();
+        if (platform == GatewayPlatform.Mobile)
+        {
+            var user = _runtime.BedrockUsers.GetUserById(request.Id);
+            if (user is null) return;
+            user.Alias = request.Alias?.Trim() ?? string.Empty;
+            _runtime.BedrockUsers.SaveUsersToDisk();
+        }
+        else
+        {
+            await _runtime.Accounts.RenameAsync(request.Id, request.Alias ?? string.Empty, cancellationToken).ConfigureAwait(false);
+        }
     }
 
-    private void DeleteUser(string? payload)
+    private async Task DeleteUserAsync(string? payload, CancellationToken cancellationToken)
     {
         var request = JsonSerializer.Deserialize<AliasRequest>(payload ?? string.Empty, JsonOptions)
             ?? throw new InvalidOperationException("无效的账号删除请求。");
-        if ((GatewayPlatform)request.Platform == GatewayPlatform.Mobile) _runtime.BedrockUsers.RemoveUser(request.Id);
-        else _runtime.JavaUsers.RemoveUser(request.Id);
-        _runtime.Tokens.RemoveToken(request.Id);
+        if ((GatewayPlatform)request.Platform == GatewayPlatform.Mobile)
+        {
+            _runtime.BedrockUsers.RemoveUser(request.Id);
+            _runtime.Tokens.RemoveToken(request.Id);
+        }
+        else await _runtime.Accounts.RemoveAsync(request.Id, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task LoginAsync(WebSocket socket, string? payload, string? identify, byte[] key, CancellationToken cancellationToken)
@@ -644,29 +641,25 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
 
         var java = _runtime.JavaUsers.GetUserById(userId)
             ?? throw new KeyNotFoundException("找不到保存的 Java 版账号。");
-        var storedAccounts = await _runtime.Accounts.ListAsync(cancellationToken).ConfigureAwait(false);
         string activatedUserId;
-        if (storedAccounts.Any(account => account.Id == java.UserId))
+        if (string.Equals(java.Type, "cookie", StringComparison.OrdinalIgnoreCase))
         {
             var session = await _runtime.Accounts.GetSessionAsync(java.UserId, cancellationToken).ConfigureAwait(false);
             activatedUserId = session.UserId;
         }
         else
         {
-            var credentials = string.Equals(java.Type, "password", StringComparison.OrdinalIgnoreCase)
-                ? JsonSerializer.Deserialize<PasswordWireRequest>(java.Details, JsonOptions)
-                    ?? throw new InvalidOperationException("保存的 Java 版密码登录参数无效。")
-                : null;
+            if (!string.Equals(java.Type, "password", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("保存的 Java 版账号类型不受支持，请重新登录。");
+            var credentials = JsonSerializer.Deserialize<PasswordWireRequest>(java.Details, JsonOptions)
+                ?? throw new InvalidOperationException("保存的 Java 版密码登录参数无效。");
             var session = await _runtime.Accounts.LoginAsync(
-                new LoginRequest(credentials is null ? "cookie" : java.Channel,
-                    credentials?.Account ?? string.Empty, credentials?.Password ?? java.Details, GatewayPlatform.Desktop),
+                new LoginRequest(java.Channel, credentials.Account, credentials.Password, GatewayPlatform.Desktop),
                 new NoopChallengeHandler(), cancellationToken).ConfigureAwait(false);
             if (!string.Equals(session.UserId, java.UserId, StringComparison.Ordinal))
                 throw new InvalidOperationException("保存的 Java 版账号与认证结果不一致。");
             activatedUserId = session.UserId;
         }
-        java.Authorized = true;
-        _runtime.JavaUsers.MarkDirtyAndScheduleSave();
         await SendLoginCompletedAsync(socket, activatedUserId, identify, key, cancellationToken).ConfigureAwait(false);
     }
 
@@ -848,7 +841,8 @@ public sealed class LocalGatewayWebSocketServer : IAsyncDisposable
         [property: JsonPropertyName("server_ip")] string ServerIp,
         [property: JsonPropertyName("server_port")] int ServerPort,
         [property: JsonPropertyName("max_game_memory")] int MaxGameMemory = 4096,
-        [property: JsonPropertyName("load_core_mods")] bool LoadCoreMods = true);
+        [property: JsonPropertyName("load_core_mods")] bool LoadCoreMods = true,
+        [property: JsonPropertyName("game_name")] string? GameName = null);
 
     private sealed record Socks5WireRequest(
         [property: JsonPropertyName("enabled")] bool Enabled,
