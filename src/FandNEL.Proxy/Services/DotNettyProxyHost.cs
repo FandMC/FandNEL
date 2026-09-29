@@ -12,10 +12,16 @@ namespace FandNEL.Proxy.Services;
 public sealed class DotNettyProxyHost : IProxyHost
 {
     private readonly SemaphoreSlim _lifecycle = new(1, 1);
+    private readonly Lazy<Task> _disposeTask;
     private readonly ConcurrentDictionary<Guid, ProxySession> _sessions = new();
     private readonly MultithreadEventLoopGroup _acceptorGroup = new(1);
     private readonly MultithreadEventLoopGroup _workerGroup = new();
     private bool _disposed;
+
+    public DotNettyProxyHost()
+    {
+        _disposeTask = new Lazy<Task>(DisposeCoreAsync, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
 
     public IReadOnlyCollection<IProxySession> Sessions => _sessions.Values.Cast<IProxySession>().ToArray();
 
@@ -62,7 +68,9 @@ public sealed class DotNettyProxyHost : IProxyHost
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync() => new(_disposeTask.Value);
+
+    private async Task DisposeCoreAsync()
     {
         await _lifecycle.WaitAsync().ConfigureAwait(false);
         try
