@@ -1895,49 +1895,6 @@ dd {
   }
 }
 
-.console-page {
-  max-width: none;
-}
-
-.console-output {
-  background: #111820;
-  border-radius: 8px;
-  color: #d8e0e8;
-  font-family: "Cascadia Code", Consolas, monospace;
-  font-size: 12px;
-  height: calc(100vh - 220px);
-  min-height: 340px;
-  overflow: auto;
-  padding: 18px;
-}
-
-.console-output div {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: auto 64px minmax(0, 1fr);
-  margin-bottom: 6px;
-}
-
-.console-output time {
-  color: #8391a1;
-}
-
-.console-output b {
-  color: #9ecdf0;
-}
-
-.console-output .log-error {
-  color: #ff9aaa;
-}
-
-.console-output .log-warning {
-  color: #f4d37b;
-}
-
-.console-output .log-success {
-  color: #85d9b5;
-}
-
 .product-grid {
   display: grid;
   gap: 12px;
@@ -2344,9 +2301,6 @@ dd {
     flex-direction: column;
   }
 
-  .console-output div {
-    grid-template-columns: auto 58px minmax(0, 1fr);
-  }
 }
 
 @media (max-width: 420px) {
@@ -6920,97 +6874,6 @@ body {
   font-weight: 600;
 }
 
-.console-page {
-  display: flex;
-  flex-direction: column;
-  max-width: 1152px;
-  padding: 24px 16px;
-}
-
-.console-header {
-  align-items: center;
-  display: flex;
-  gap: 24px;
-  justify-content: space-between;
-  margin-bottom: 16px;
-}
-
-.console-header h1 {
-  color: #111827;
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0;
-}
-
-.console-header p {
-  color: #6b7280;
-  font-size: 14px;
-  margin: 0;
-}
-
-.console-header > div:last-child {
-  display: flex;
-  gap: 12px;
-}
-
-.console-header button {
-  align-items: center;
-  background: transparent;
-  border: 0;
-  border-radius: 8px;
-  color: #374151;
-  cursor: pointer;
-  display: flex;
-  font-size: 14px;
-  font-weight: 500;
-  gap: 8px;
-  padding: 8px 12px;
-}
-
-.console-header button:hover {
-  background: #f3f4f6;
-}
-
-.console-header svg {
-  height: 16px;
-  width: 16px;
-}
-
-.console-output {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-  display: block;
-  height: calc(100vh - 226px);
-  max-height: calc(100vh - 226px);
-  overflow: auto;
-  padding: 16px;
-}
-
-.console-output > div {
-  align-items: baseline;
-  display: grid;
-  font-family: "SFMono-Regular", Consolas, monospace;
-  font-size: 12px;
-  gap: 10px;
-  grid-template-columns: auto 40px minmax(0, 1fr);
-  padding: 2px 0;
-}
-
-.console-output time {
-  color: #9ca3af;
-}
-
-.console-output b {
-  color: #4b5563;
-}
-
-.console-output .log-error { color: #dc2626; }
-.console-output .log-warning { color: #ca8a04; }
-.console-output .log-success { color: #16a34a; }
-.console-output .log-command { color: #086da4; }
-
 .platform-settings {
   border-radius: 16px;
   margin: 0 20px 48px;
@@ -7428,8 +7291,7 @@ body {
   }
 
   .uc-intro,
-  .server-browser-header,
-  .console-header {
+  .server-browser-header {
     align-items: stretch;
     flex-direction: column;
   }
@@ -7509,10 +7371,6 @@ body {
 
   .mods-toolbar > div {
     grid-template-columns: 1fr;
-  }
-
-  .console-header > div:last-child {
-    justify-content: space-between;
   }
 
 }
@@ -7791,7 +7649,6 @@ body {
   .bedrock-rental-browser,
   .skins-page,
   .detail-page,
-  .console-page,
   .interceptor-heading,
   .interceptor-content {
     padding-left: 24px;

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth, useGateway, useToasts } from "../../context/AppContext";
+import { useGateway, useToasts } from "../../context/AppContext";
 import { consumeGatewayMessages, parseGatewayPayload, useGatewayList } from "./gatewayData";
 import type { GatewayMessage } from "../../types";
 
@@ -42,7 +42,6 @@ const accountTabs: Array<{ label: string; value: AccountTab }> = [
 
 export function DashboardPage() {
   const { gateway, items: accountItems, loading } = useGatewayList<GatewayAccount>("get_accounts");
-  const { user } = useAuth();
   const { notify } = useToasts();
   const navigate = useNavigate();
   const [loginOpen, setLoginOpen] = useState(false);
@@ -73,7 +72,7 @@ export function DashboardPage() {
       <section className="dashboard-v253-header">
         <div>
           <h1>概览</h1>
-          <p>欢迎回来，<strong>{user?.username || user?.displayName || ""}</strong></p>
+          <p>欢迎回来!</p>
         </div>
         <div className="dashboard-v253-header-actions">
           <button type="button" onClick={() => navigate("/user-center/settings")}><Settings />设置</button>

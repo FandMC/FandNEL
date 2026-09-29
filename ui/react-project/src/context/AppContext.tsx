@@ -8,33 +8,12 @@ import {
   useRef,
   useState,
 } from "react";
-import {
-  logoutLegacySession,
-  type LegacySession,
-  type WebAuthnStatus,
-} from "../lib/legacyAuth";
 import type {
   GatewayMessage,
   GatewayStatus,
   LogEntry,
   ToastMessage,
-  UserProfile,
 } from "../types";
-
-interface AuthContextValue {
-  session: LegacySession | null;
-  user: UserProfile | null;
-  loading: boolean;
-  checkEmail(email: string): Promise<boolean>;
-  login(email: string, password: string): Promise<void>;
-  register(email: string, password: string, firstName: string, lastName: string): Promise<void>;
-  loginPrivateKey(privateKey: string): Promise<void>;
-  webAuthnStatus(email: string): Promise<WebAuthnStatus>;
-  loginPasskey(email: string): Promise<void>;
-  refreshSession(): Promise<void>;
-  logout(): Promise<void>;
-  updateUser(user: UserProfile): void;
-}
 
 interface GatewayContextValue {
   url: string;
@@ -60,7 +39,6 @@ interface ToastContextValue {
   dismiss(id: string): void;
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null);
 const GatewayContext = createContext<GatewayContextValue | null>(null);
 const ToastContext = createContext<ToastContextValue | null>(null);
 
@@ -97,46 +75,6 @@ async function createGatewayMessage(
     sign: await sha256(serializedPayload),
     identify,
   };
-}
-
-function AuthProvider({ children }: { children: ReactNode }) {
-  // FandNEL does not use the legacy Codexus/Nexus account session.  Keep the
-  // context shape for pages shared with the old UI, but make it anonymous and
-  // side-effect free so a missing account can never block the gateway flow.
-  const [session] = useState<LegacySession | null>(null);
-  const loading = false;
-  const checkEmail = useCallback(async (_email: string) => false, []);
-  const login = useCallback(async (_email: string, _password: string) => undefined, []);
-  const register = useCallback(async (_email: string, _password: string, _firstName: string, _lastName: string) => undefined, []);
-  const loginPrivateKey = useCallback(async (_privateKey: string) => undefined, []);
-  const webAuthnStatus = useCallback(async (_email: string): Promise<WebAuthnStatus> => ({ hasWebAuthn: false, isEnabled: false }), []);
-  const loginPasskey = useCallback(async (_email: string) => undefined, []);
-  const refreshSession = useCallback(async () => undefined, []);
-
-  const logout = useCallback(async () => {
-    logoutLegacySession();
-  }, []);
-
-  const updateUser = useCallback((_user: UserProfile) => undefined, []);
-
-  const value = useMemo(
-    () => ({
-      session,
-      user: session?.user ?? null,
-      loading,
-      checkEmail,
-      login,
-      register,
-      loginPrivateKey,
-      webAuthnStatus,
-      loginPasskey,
-      refreshSession,
-      logout,
-      updateUser,
-    }),
-    [session, loading, checkEmail, login, register, loginPrivateKey, webAuthnStatus, loginPasskey, refreshSession, logout, updateUser],
-  );
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 function GatewayProvider({ children }: { children: ReactNode }) {
@@ -525,17 +463,9 @@ function ToastProvider({ children }: { children: ReactNode }) {
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <ToastProvider>
-      <AuthProvider>
-        <GatewayProvider>{children}</GatewayProvider>
-      </AuthProvider>
+      <GatewayProvider>{children}</GatewayProvider>
     </ToastProvider>
   );
-}
-
-export function useAuth() {
-  const value = useContext(AuthContext);
-  if (!value) throw new Error("useAuth must be used inside AppProviders");
-  return value;
 }
 
 export function useGateway() {

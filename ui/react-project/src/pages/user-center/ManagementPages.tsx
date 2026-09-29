@@ -1,4 +1,4 @@
-import { Copy, Download, FlaskConical, FolderOpen, PackageOpen, Plus, Trash2 } from "lucide-react";
+import { Copy, FlaskConical, FolderOpen, PackageOpen, Plus, Trash2 } from "lucide-react";
 import { ReactNode, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGateway, useToasts } from "../../context/AppContext";
@@ -136,35 +136,4 @@ export function ModsPage() {
       </ManagementCard>
     </main>
   );
-}
-
-export function ConsolePage() {
-  const gateway = useGateway();
-  const outputRef = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    const output = outputRef.current;
-    if (output) output.scrollTop = output.scrollHeight;
-  }, [gateway.logs]);
-
-  const download = () => {
-    const content = gateway.logs.map((entry) => `[${new Date(entry.timestamp).toLocaleTimeString()}] ${logLabel(entry.type)} ${entry.content}`).join("\n");
-    const url = URL.createObjectURL(new Blob([content], { type: "text/plain" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "terminal_logs.txt";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  return <div className="workspace-page console-page"><section className="console-header"><div><h1>控制台</h1><p>系统日志与终端输出</p></div><div><button type="button" onClick={gateway.clearLogs}><Trash2 />清空</button><button type="button" onClick={download}><Download />下载</button></div></section><section className="console-output" ref={outputRef}>{gateway.logs.map((entry) => <div key={entry.id}><time>[{new Date(entry.timestamp).toLocaleTimeString()}]</time><b className={`log-${entry.type}`}>{logLabel(entry.type)}</b><span>{entry.content}</span></div>)}</section></div>;
-}
-
-function logLabel(type: string): string {
-  if (type === "error") return "错误";
-  if (type === "warning") return "警告";
-  if (type === "success") return "成功";
-  if (type === "command") return "$";
-  return "信息";
 }

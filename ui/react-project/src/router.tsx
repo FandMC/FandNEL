@@ -29,7 +29,7 @@ import {
   InterceptorConfigurationLayout,
   InterceptorPlaceholderPage,
 } from "./pages/user-center/InterceptorConfiguration";
-import { ConsolePage, LaunchersPage, ModsPage } from "./pages/user-center/ManagementPages";
+import { LaunchersPage, ModsPage } from "./pages/user-center/ManagementPages";
 
 export function AppRouter() {
   return (
@@ -59,7 +59,6 @@ export function AppRouter() {
             </Route>
             <Route path="java-skins" element={<JavaSkinsPage />} />
             <Route path="mods" element={<ModsPage />} />
-            <Route path="console" element={<ConsolePage />} />
             <Route path="settings" element={<GatewaySettingsPage />} />
           </Route>
 

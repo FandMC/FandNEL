@@ -12,7 +12,7 @@ import { GameLaunchPage } from "../components/GameLaunchPage";
 import { JavaGameDetailsPanel, JavaGameDetailsSkeleton } from "../components/JavaGameDetailsPanel";
 import { JavaJoinGameModal, type JavaGameDetails, type JavaGameKind } from "../components/JavaJoinGameModal";
 import { ServerBrowserPage } from "../components/ServerBrowserPage";
-import { useAuth, useGateway, useToasts } from "../context/AppContext";
+import { useGateway, useToasts } from "../context/AppContext";
 import { loadGatewaySettings, readGatewaySettings, writeGatewaySettings, type GatewaySettings } from "../lib/settingsStorage";
 
 type Resource = Record<string, unknown>;
@@ -183,7 +183,6 @@ function SettingsCard({ title, description, children }: { title: string; descrip
 export function GatewaySettingsPage() {
   const gateway = useGateway();
   const { notify } = useToasts();
-  const { user } = useAuth();
   const [tab, setTab] = useState<"application" | "download" | "pe">("application");
   const [settings, setSettings] = useState<GatewaySettings>(readGatewaySettings());
 
