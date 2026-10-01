@@ -1,8 +1,13 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 
 namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 
 /// <summary>玩家移动的四种线格式；缺席坐标用 null 表示，不持有连接状态。</summary>
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ServerBound, MinecraftPacketIds.Serverbound.Position, ProtocolVersion.V1206)]
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ServerBound, MinecraftPacketIds.Serverbound.PositionAndRotation, ProtocolVersion.V1206)]
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ServerBound, MinecraftPacketIds.Serverbound.Rotation, ProtocolVersion.V1206)]
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ServerBound, MinecraftPacketIds.Serverbound.OnGround, ProtocolVersion.V1206)]
 public sealed record PlayerMovementPacket(int PacketId, double? X, double? Y, double? Z,
     float? Yaw, float? Pitch, bool OnGround)
 {

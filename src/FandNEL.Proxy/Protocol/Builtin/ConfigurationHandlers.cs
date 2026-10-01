@@ -1,6 +1,10 @@
+using V1206Ids = FandNEL.Proxy.Packet.Minecraft.V1206.MinecraftPacketIds;
+using V1218Ids = FandNEL.Proxy.Packet.Minecraft.V1218.MinecraftPacketIds;
+using V12110Ids = FandNEL.Proxy.Packet.Minecraft.V12110.MinecraftPacketIds;
+
 namespace FandNEL.Proxy.Protocol.Builtin;
 
-[RegisterPacket(ConnectionState.Configuration, PacketDirection.ClientBound, 3)]
+[RegisterPacket(ConnectionState.Configuration, PacketDirection.ClientBound, V1206Ids.Configuration.Finish)]
 public sealed class FinishConfigurationHandler : IPacketHandler
 {
     public ValueTask HandleAsync(PacketContext context, CancellationToken cancellationToken)
@@ -10,7 +14,7 @@ public sealed class FinishConfigurationHandler : IPacketHandler
     }
 }
 
-[RegisterPacket(ConnectionState.Configuration, PacketDirection.ServerBound, 3)]
+[RegisterPacket(ConnectionState.Configuration, PacketDirection.ServerBound, V1206Ids.Configuration.Finish)]
 public sealed class AcknowledgeFinishConfigurationHandler : IPacketHandler
 {
     public ValueTask HandleAsync(PacketContext context, CancellationToken cancellationToken)
@@ -26,9 +30,9 @@ public sealed class AcknowledgeFinishConfigurationHandler : IPacketHandler
     }
 }
 
-[RegisterPacket(ConnectionState.Play, PacketDirection.ClientBound, 105, ProtocolVersion.V1206, ProtocolVersion.V1210)]
-[RegisterPacket(ConnectionState.Play, PacketDirection.ClientBound, 111, ProtocolVersion.V1218)]
-[RegisterPacket(ConnectionState.Play, PacketDirection.ClientBound, 116, ProtocolVersion.V12110)]
+[RegisterPacket(ConnectionState.Play, PacketDirection.ClientBound, V1206Ids.Clientbound.StartConfiguration, ProtocolVersion.V1206, ProtocolVersion.V1210)]
+[RegisterPacket(ConnectionState.Play, PacketDirection.ClientBound, V1218Ids.Clientbound.StartConfiguration, ProtocolVersion.V1218)]
+[RegisterPacket(ConnectionState.Play, PacketDirection.ClientBound, V12110Ids.Clientbound.StartConfiguration, ProtocolVersion.V12110)]
 public sealed class StartConfigurationHandler : IPacketHandler
 {
     public ValueTask HandleAsync(PacketContext context, CancellationToken cancellationToken)
@@ -40,10 +44,12 @@ public sealed class StartConfigurationHandler : IPacketHandler
     }
 }
 
-[RegisterPacket(ConnectionState.Play, PacketDirection.ServerBound, 12, ProtocolVersion.V1206, ProtocolVersion.V1210)]
-[RegisterPacket(ConnectionState.Play, PacketDirection.ServerBound, 15, ProtocolVersion.V1218, ProtocolVersion.V12110)]
-[RegisterPacket(ConnectionState.Configuration, PacketDirection.ServerBound, 12, ProtocolVersion.V1206, ProtocolVersion.V1210)]
-[RegisterPacket(ConnectionState.Configuration, PacketDirection.ServerBound, 15, ProtocolVersion.V1218, ProtocolVersion.V12110)]
+[RegisterPacket(ConnectionState.Play, PacketDirection.ServerBound, V1206Ids.Serverbound.AcknowledgeConfiguration, ProtocolVersion.V1206, ProtocolVersion.V1210)]
+[RegisterPacket(ConnectionState.Play, PacketDirection.ServerBound, V1218Ids.Serverbound.AcknowledgeConfiguration, ProtocolVersion.V1218)]
+[RegisterPacket(ConnectionState.Play, PacketDirection.ServerBound, V12110Ids.Serverbound.AcknowledgeConfiguration, ProtocolVersion.V12110)]
+[RegisterPacket(ConnectionState.Configuration, PacketDirection.ServerBound, V1206Ids.Serverbound.AcknowledgeConfiguration, ProtocolVersion.V1206, ProtocolVersion.V1210)]
+[RegisterPacket(ConnectionState.Configuration, PacketDirection.ServerBound, V1218Ids.Serverbound.AcknowledgeConfiguration, ProtocolVersion.V1218)]
+[RegisterPacket(ConnectionState.Configuration, PacketDirection.ServerBound, V12110Ids.Serverbound.AcknowledgeConfiguration, ProtocolVersion.V12110)]
 public sealed class AcknowledgeConfigurationHandler : IPacketHandler
 {
     public ValueTask HandleAsync(PacketContext context, CancellationToken cancellationToken)

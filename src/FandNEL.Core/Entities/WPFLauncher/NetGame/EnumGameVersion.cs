@@ -51,5 +51,9 @@ public enum EnumGameVersion : uint
 	[XmlEnum(Name = "1.20.6")]
 	V_1_20_6 = 1020006u,
 	[XmlEnum(Name = "1.21")]
-	V_1_21 = 1021000u
+	V_1_21 = 1021000u,
+	[XmlEnum(Name = "1.21.8")]
+	V_1_21_8 = 1021008u,
+	[XmlEnum(Name = "1.21.10")]
+	V_1_21_10 = 1021010u
 }

@@ -12,13 +12,15 @@ internal static class IrcChatPayloads
     internal static byte[] BuildSystemChat(ProtocolVersion version, string text)
     {
         var safe = SingleLine(text);
-        if (version == ProtocolVersion.V1206)
-            return new SystemChatPacket(new NbtCompound().Set(IrcConstants.TextComponentField, new NbtString(safe)), false).Write();
-        using var writer = new PacketWriter();
         if (version >= ProtocolVersion.V1206)
-            return BuildNetworkText(writer, safe);
-
-        writer.WriteString(JsonSerializer.Serialize(new IrcJsonTextComponent(safe)));
+            return new SystemChatPacket(new NbtCompound().Set(IrcConstants.TextComponentField, new NbtString(safe)), false).Write();
+        var json = JsonSerializer.Serialize(new IrcJsonTextComponent(safe));
+        if (version == ProtocolVersion.V1200)
+            return new Packet.Minecraft.V1200.SystemChatPacket(json, false).Write();
+        if (version == ProtocolVersion.V1122)
+            return new Packet.Minecraft.V1122.ClientboundChatMessagePacket(json, IrcConstants.ChatMessagePosition).Write();
+        using var writer = new PacketWriter();
+        writer.WriteString(json);
         if (version >= ProtocolVersion.V1200) writer.WriteBoolean(false); // 1.20：是否动作栏
         else if (version >= ProtocolVersion.V1165)
         {
@@ -29,14 +31,6 @@ internal static class IrcChatPayloads
         {
             writer.WriteByte(IrcConstants.ChatMessagePosition); // 消息位置：聊天栏
         }
-        return writer.ToArray();
-    }
-
-    private static byte[] BuildNetworkText(PacketWriter writer, string text)
-    {
-        var component = new NbtCompound().Set(IrcConstants.TextComponentField, new NbtString(text));
-        writer.WriteNetworkNbtCompound(component);
-        writer.WriteBoolean(false); // 是否动作栏
         return writer.ToArray();
     }
 

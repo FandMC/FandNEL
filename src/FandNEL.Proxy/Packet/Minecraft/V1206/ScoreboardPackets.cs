@@ -1,3 +1,4 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 using FandNEL.Proxy.Packet.Minecraft.Nbt;
 
@@ -21,6 +22,7 @@ public sealed record ScoreNumberFormat(ScoreNumberFormatKind Kind, NbtTag? Conte
     }
 }
 
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.DisplayObjective, ProtocolVersion.V1206)]
 public sealed record DisplayObjectivePacket(int Slot, string ObjectiveName)
 {
     public static DisplayObjectivePacket Read(ReadOnlyMemory<byte> payload)
@@ -33,6 +35,7 @@ public sealed record DisplayObjectivePacket(int Slot, string ObjectiveName)
     }
 }
 
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.SetObjective, ProtocolVersion.V1206)]
 public sealed record SetObjectivePacket(string Name, byte Mode, NbtTag? DisplayName, int? RenderType, ScoreNumberFormat? NumberFormat)
 {
     public static SetObjectivePacket Read(ReadOnlyMemory<byte> payload)
@@ -56,6 +59,7 @@ public sealed record SetObjectivePacket(string Name, byte Mode, NbtTag? DisplayN
     }
 }
 
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.SetScore, ProtocolVersion.V1206)]
 public sealed record SetScorePacket(string Owner, string ObjectiveName, int Value, NbtTag? DisplayName, ScoreNumberFormat? NumberFormat)
 {
     public static SetScorePacket Read(ReadOnlyMemory<byte> payload)
@@ -71,6 +75,7 @@ public sealed record SetScorePacket(string Owner, string ObjectiveName, int Valu
     }
 }
 
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.ResetScore, ProtocolVersion.V1206)]
 public sealed record ResetScorePacket(string Owner, string? ObjectiveName)
 {
     public static ResetScorePacket Read(ReadOnlyMemory<byte> payload)

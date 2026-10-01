@@ -1,7 +1,9 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 
 namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.SpawnEntity, ProtocolVersion.V1206)]
 public sealed record SpawnEntityPacket(int EntityId, Guid Uuid, int EntityType, double X, double Y, double Z,
     byte Pitch, byte Yaw, byte HeadYaw, int Data, short VelocityX, short VelocityY, short VelocityZ)
 {

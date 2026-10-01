@@ -1,7 +1,9 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 
 namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.PlayerInfoRemove, ProtocolVersion.V1206)]
 public sealed record PlayerInfoRemovePacket(Guid[] PlayerIds)
 {
     public static PlayerInfoRemovePacket Read(ReadOnlyMemory<byte> payload)

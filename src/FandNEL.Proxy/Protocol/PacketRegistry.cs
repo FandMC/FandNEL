@@ -1,4 +1,6 @@
+using System.Linq.Expressions;
 using System.Reflection;
+using System.Text;
 
 namespace FandNEL.Proxy.Protocol;
 
@@ -19,6 +21,21 @@ public sealed class RegisterPacketAttribute(
     public int PacketId { get; } = packetId;
     public ProtocolVersion[] Versions { get; } = versions;
     public int Priority { get; set; }
+}
+
+/// <summary>声明包模型的协议元数据，由注册表反射扫描后自动挂载只读解析器。</summary>
+[AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+public sealed class RegisterPacketModelAttribute(
+    ConnectionState state,
+    PacketDirection direction,
+    int packetId,
+    params ProtocolVersion[] versions) : Attribute
+{
+    public ConnectionState State { get; } = state;
+    public PacketDirection Direction { get; } = direction;
+    public int PacketId { get; } = packetId;
+    public ProtocolVersion[] Versions { get; } = versions;
+    public int Priority { get; set; } = 1000;
 }
 
 /// <summary>每个监听会话拥有独立注册表；同一包可绑定多个有序处理器。</summary>
@@ -54,7 +71,8 @@ public sealed class PacketRegistry
         var registrations = new List<IDisposable>();
         try
         {
-            foreach (var type in assembly.GetTypes().Where(type => !type.IsAbstract && typeof(IPacketHandler).IsAssignableFrom(type)))
+            var types = assembly.GetTypes();
+            foreach (var type in types.Where(type => !type.IsAbstract && typeof(IPacketHandler).IsAssignableFrom(type)))
             {
                 var attributes = type.GetCustomAttributes<RegisterPacketAttribute>().ToArray();
                 if (attributes.Length == 0)
@@ -65,6 +83,36 @@ public sealed class PacketRegistry
                     registrations.Add(Register(attribute.State, attribute.Direction, attribute.PacketId,
                         handler.HandleAsync, attribute.Versions.Length == 0 ? null : attribute.Versions, attribute.Priority));
             }
+
+            var parsers = new Dictionary<Type, Func<PacketContext, object>>();
+            foreach (var type in types)
+            {
+                if (!type.GetCustomAttributes<RegisterPacketModelAttribute>().Any())
+                    continue;
+                if (!parsers.TryGetValue(type, out var parser))
+                {
+                    parser = PacketModelParser.Create(type);
+                    parsers.Add(type, parser);
+                }
+                foreach (var attribute in type.GetCustomAttributes<RegisterPacketModelAttribute>())
+                {
+                    registrations.Add(Register(attribute.State, attribute.Direction, attribute.PacketId,
+                        (context, _) =>
+                        {
+                            try
+                            {
+                                context.SetParsedPacket(parser(context));
+                            }
+                            catch (Exception exception) when (TryGetRecoverableParseException(exception, out var parseException))
+                            {
+                                context.SetParseException(parseException);
+                            }
+
+                            return ValueTask.CompletedTask;
+                        }, attribute.Versions.Length == 0 ? null : attribute.Versions, attribute.Priority));
+                }
+            }
+
             return new Registration(() => { foreach (var registration in registrations) registration.Dispose(); });
         }
         catch
@@ -73,6 +121,42 @@ public sealed class PacketRegistry
                 registration.Dispose();
             throw;
         }
+    }
+
+    private static bool TryGetRecoverableParseException(Exception exception, out Exception parseException)
+    {
+        parseException = exception is TargetInvocationException { InnerException: { } inner } ? inner : exception;
+        return parseException is InvalidDataException or NotSupportedException or OverflowException
+            or DecoderFallbackException or ArgumentException;
+    }
+
+    private static class PacketModelParser
+    {
+        public static Func<PacketContext, object> Create(Type packetType)
+        {
+            ArgumentNullException.ThrowIfNull(packetType);
+            var methods = packetType.GetMethods(BindingFlags.Public | BindingFlags.Static)
+                .Where(method => method.Name == "Read" && method.ReturnType != typeof(void))
+                .ToArray();
+            var payloadMethod = methods.SingleOrDefault(method => HasParameters(method, typeof(ReadOnlyMemory<byte>)));
+            var packetMethod = methods.SingleOrDefault(method => HasParameters(method, typeof(int), typeof(ReadOnlyMemory<byte>)));
+            if (payloadMethod is null && packetMethod is null)
+                throw new InvalidOperationException($"包模型 {packetType.FullName} 缺少支持的 Read 方法。");
+            if (payloadMethod is not null && packetMethod is not null)
+                throw new InvalidOperationException($"包模型 {packetType.FullName} 的 Read 方法存在歧义。");
+
+            var method = payloadMethod ?? packetMethod!;
+            var contextParameter = Expression.Parameter(typeof(PacketContext), "context");
+            var payload = Expression.Property(contextParameter, nameof(PacketContext.Payload));
+            var call = payloadMethod is not null
+                ? Expression.Call(method, payload)
+                : Expression.Call(method, Expression.Property(contextParameter, nameof(PacketContext.PacketId)), payload);
+            var body = Expression.Convert(call, typeof(object));
+            return Expression.Lambda<Func<PacketContext, object>>(body, contextParameter).Compile();
+        }
+
+        private static bool HasParameters(MethodInfo method, params Type[] parameters) =>
+            method.GetParameters().Select(parameter => parameter.ParameterType).SequenceEqual(parameters);
     }
 
     internal async ValueTask DispatchAsync(PacketContext context, CancellationToken cancellationToken)

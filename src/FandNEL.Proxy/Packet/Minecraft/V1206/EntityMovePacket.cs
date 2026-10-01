@@ -1,8 +1,12 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 
 namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 
 /// <summary>相对位移采用 1/4096 格为单位；仅旋转的包位移为零。</summary>
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.EntityMove, ProtocolVersion.V1206)]
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.EntityMoveAndRotation, ProtocolVersion.V1206)]
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.EntityRotation, ProtocolVersion.V1206)]
 public sealed record EntityMovePacket(int PacketId, int EntityId, short DeltaX, short DeltaY, short DeltaZ,
     byte? Yaw, byte? Pitch, bool OnGround)
 {

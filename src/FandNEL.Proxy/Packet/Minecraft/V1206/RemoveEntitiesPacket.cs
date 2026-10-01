@@ -1,7 +1,9 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 
 namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.RemoveEntities, ProtocolVersion.V1206)]
 public sealed record RemoveEntitiesPacket(int[] EntityIds)
 {
     public static RemoveEntitiesPacket Read(ReadOnlyMemory<byte> payload)

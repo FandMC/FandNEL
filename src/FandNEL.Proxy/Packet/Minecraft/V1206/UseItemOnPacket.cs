@@ -1,7 +1,9 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 
 namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ServerBound, MinecraftPacketIds.Serverbound.UseItemOn, ProtocolVersion.V1206)]
 public sealed record UseItemOnPacket(int Hand, BlockPosition Location, int Face,
     float CursorPositionX, float CursorPositionY, float CursorPositionZ, bool InsideBlock, int Sequence)
 {

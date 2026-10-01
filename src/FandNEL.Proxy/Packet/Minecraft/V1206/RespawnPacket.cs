@@ -1,7 +1,9 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 
 namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.Respawn, ProtocolVersion.V1206)]
 public sealed record RespawnPacket(CommonPlayerSpawnInfo SpawnInfo, byte DataToKeep)
 {
     public static RespawnPacket Read(ReadOnlyMemory<byte> payload)

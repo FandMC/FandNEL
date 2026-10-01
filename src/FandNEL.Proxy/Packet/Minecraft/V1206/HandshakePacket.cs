@@ -1,8 +1,10 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 
 namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 
 /// <summary>握手的原版字段；未识别的扩展尾部原样保留。</summary>
+[RegisterPacketModel(ConnectionState.Handshaking, PacketDirection.ServerBound, MinecraftPacketIds.Handshake.Serverbound)]
 public sealed record HandshakePacket(int ProtocolVersion, string ServerAddress, ushort ServerPort, int NextState, byte[] TrailingData)
 {
     public static HandshakePacket Read(ReadOnlyMemory<byte> payload)

@@ -1,3 +1,4 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 using FandNEL.Proxy.Packet.Minecraft.Nbt;
 
@@ -6,6 +7,7 @@ namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 public sealed record PlayerInfoEntry(Guid Id, string? ProfileName, int? GameMode, NbtTag? DisplayName);
 
 /// <summary>读取玩家列表状态，不改写档案、聊天签名或 TAB 字段；原始载荷完整保留。</summary>
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.PlayerInfoUpdate, ProtocolVersion.V1206)]
 public sealed class PlayerInfoUpdatePacket
 {
     private readonly byte[] _payload;

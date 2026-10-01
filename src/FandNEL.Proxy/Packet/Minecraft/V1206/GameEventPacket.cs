@@ -1,7 +1,9 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 
 namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.GameEvent, ProtocolVersion.V1206)]
 public sealed record GameEventPacket(byte Event, float Value)
 {
     public const byte ChangeGameMode = 3;

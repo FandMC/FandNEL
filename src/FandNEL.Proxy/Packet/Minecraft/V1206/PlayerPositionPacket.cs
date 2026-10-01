@@ -1,8 +1,10 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 
 namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 
 /// <summary>服务器位置校正；相对值标志的应用由连接的玩家状态负责。</summary>
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.PlayerCorrection, ProtocolVersion.V1206)]
 public sealed record PlayerPositionPacket(double X, double Y, double Z, float Yaw, float Pitch,
     byte Flags, int TeleportId)
 {

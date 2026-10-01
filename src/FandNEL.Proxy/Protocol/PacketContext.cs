@@ -23,6 +23,10 @@ public sealed class PacketContext
     public ProtocolVersion Version => Connection.Version;
     public int PacketId { get; }
     public ReadOnlyMemory<byte> Payload => _payload;
+    /// <summary>由版本包模型自动解析出的载荷对象；解析失败时保持 null。</summary>
+    public object? ParsedPacket { get; private set; }
+    /// <summary>自动解析失败的可恢复错误；原始载荷仍会继续转发。</summary>
+    public Exception? ParseException { get; private set; }
     public bool IsCancelled { get; private set; }
     public bool PropagationStopped { get; private set; }
     public PacketReader CreateReader() => new(_payload);
@@ -40,13 +44,50 @@ public sealed class PacketContext
 
     internal ValueTask CompleteForwardAsync() => _afterForward?.Invoke() ?? ValueTask.CompletedTask;
 
-    public void ReplacePayload(ReadOnlySpan<byte> payload) => _payload = payload.ToArray();
+    public void ReplacePayload(ReadOnlySpan<byte> payload)
+    {
+        InvalidateParsedPacket();
+        _payload = payload.ToArray();
+    }
+
+    public bool TryGetParsedPacket<T>(out T packet) where T : class
+    {
+        if (ParsedPacket is T value)
+        {
+            packet = value;
+            return true;
+        }
+
+        packet = null!;
+        return false;
+    }
+
+    internal void SetParsedPacket(object packet)
+    {
+        ArgumentNullException.ThrowIfNull(packet);
+        ParsedPacket = packet;
+        ParseException = null;
+    }
+
+    internal void SetParseException(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+        ParsedPacket = null;
+        ParseException = exception;
+    }
+
+    private void InvalidateParsedPacket()
+    {
+        ParsedPacket = null;
+        ParseException = null;
+    }
 
     /// <summary>替换一个字段的字节范围，前缀和尾部由运行时保留，后续处理器看到修改后的载荷。</summary>
     public void ReplaceRange(int offset, int length, ReadOnlySpan<byte> replacement)
     {
         if (offset < 0 || length < 0 || offset > _payload.Length - length)
             throw new ArgumentOutOfRangeException(nameof(offset));
+        InvalidateParsedPacket();
         var updated = new byte[checked(_payload.Length - length + replacement.Length)];
         _payload.AsSpan(0, offset).CopyTo(updated);
         replacement.CopyTo(updated.AsSpan(offset));

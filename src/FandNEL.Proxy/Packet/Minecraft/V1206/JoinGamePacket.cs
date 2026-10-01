@@ -1,8 +1,10 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 
 namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 
 /// <summary>默认保留后续载荷；需要维度或游戏设置时显式读取强类型字段。</summary>
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.JoinGame, ProtocolVersion.V1206)]
 public sealed record JoinGamePacket(int EntityId, byte[] RemainingData)
 {
     public JoinGamePacket(int entityId, JoinGameData data) : this(entityId, data.Write()) { }

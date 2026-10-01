@@ -1,9 +1,11 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 
 namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 
 public sealed record ProfileProperty(string Name, string Value, string? Signature);
 
+[RegisterPacketModel(ConnectionState.Login, PacketDirection.ClientBound, MinecraftPacketIds.Login.ClientboundSuccess, ProtocolVersion.V1206, ProtocolVersion.V1210, ProtocolVersion.V1218, ProtocolVersion.V12110)]
 public sealed record LoginSuccessPacket(Guid PlayerUuid, string Name, IReadOnlyList<ProfileProperty> Properties, bool StrictErrorHandling)
 {
     public static LoginSuccessPacket Read(ReadOnlyMemory<byte> payload)

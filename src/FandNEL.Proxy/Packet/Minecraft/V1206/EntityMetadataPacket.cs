@@ -1,3 +1,4 @@
+using FandNEL.Proxy.Protocol;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using FandNEL.Proxy.Packet.IO;
@@ -5,6 +6,7 @@ using FandNEL.Proxy.Packet.IO;
 namespace FandNEL.Proxy.Packet.Minecraft.V1206;
 
 /// <summary>解析元数据边界并保留字段原始字节；不决定哪些实体或字段需要过滤。</summary>
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.EntityMetadata, ProtocolVersion.V1206)]
 public sealed record EntityMetadataPacket(int EntityId, IReadOnlyList<EntityMetadataEntry> Entries)
 {
     public static EntityMetadataPacket Read(ReadOnlyMemory<byte> payload)

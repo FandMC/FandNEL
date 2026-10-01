@@ -1,3 +1,4 @@
+using FandNEL.Proxy.Protocol;
 using FandNEL.Proxy.Packet.IO;
 using FandNEL.Proxy.Packet.Minecraft.Nbt;
 
@@ -9,6 +10,7 @@ public sealed record SetPlayerTeamParameters(NbtTag DisplayName, byte FriendlyFl
 public sealed record SetPlayerTeamData(SetPlayerTeamParameters? Parameters, IReadOnlyList<string> Players);
 
 /// <summary>按操作模式读取队伍字段，并保留原始载荷；不包含显示或丢弃策略。</summary>
+[RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.Team, ProtocolVersion.V1206)]
 public sealed record SetPlayerTeamPacket(string Name, byte Mode, byte[] RemainingData)
 {
     public static SetPlayerTeamPacket Read(ReadOnlyMemory<byte> payload)
