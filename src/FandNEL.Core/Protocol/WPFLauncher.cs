@@ -538,6 +538,25 @@ public class WPFLauncher : IDisposable
 		}
 	}
 
+	public Entity<EntityGameCharacter> PreDeleteCharacter(string userId, string userToken, string entityId)
+	{
+		return UpdateCharacterDeletionAsync("/game-character/pre-delete", userId, userToken, entityId).GetAwaiter().GetResult();
+	}
+
+	public Entity<EntityGameCharacter> CancelPreDeleteCharacter(string userId, string userToken, string entityId)
+	{
+		return UpdateCharacterDeletionAsync("/game-character/cancel-pre-delete", userId, userToken, entityId).GetAwaiter().GetResult();
+	}
+
+	private async Task<Entity<EntityGameCharacter>> UpdateCharacterDeletionAsync(string path, string userId, string userToken, string entityId)
+	{
+		string body = JsonSerializer.Serialize(new { entity_id = entityId }, DefaultOptions);
+		return JsonSerializer.Deserialize<Entity<EntityGameCharacter>>(await (await _game.PostAsync(path, body, builder =>
+		{
+			builder.AddHeader(TokenUtil.ComputeHttpRequestToken(builder.Url, builder.Body, userId, userToken));
+		})).Content.ReadAsStringAsync());
+	}
+
 	public async Task<EntityAuthenticationUpdate?> AuthenticationUpdateAsync(string userId, string userToken)
 	{
 		string entity = JsonSerializer.Serialize(new EntityAuthenticationUpdate

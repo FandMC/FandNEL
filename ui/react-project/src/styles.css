@@ -4337,15 +4337,6 @@ body {
   overflow-x: auto;
 }
 
-.account-table {
-  align-items: center;
-  display: grid;
-  gap: 16px;
-  grid-template-columns: 2fr 2fr 4fr 3fr 2fr 2fr 2fr;
-  min-width: 880px;
-  padding: 16px;
-}
-
 .account-table-head {
   background: var(--bg);
   border-bottom: 1px solid var(--border);
@@ -5086,28 +5077,6 @@ body {
 
 .account-list {
   border-top: 1px solid var(--border);
-}
-
-.account-row {
-  align-items: center;
-  border-top: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  padding: 16px 24px;
-}
-
-.account-row:first-child {
-  border-top: 0;
-}
-
-.account-row > div {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.account-row small {
-  color: var(--text-secondary);
 }
 
 .uc-empty {

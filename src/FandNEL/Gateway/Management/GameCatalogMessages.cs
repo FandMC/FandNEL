@@ -26,6 +26,7 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
     public bool CanHandle(string type) => type is
         "net_games" or "net_games_search" or "rental_games" or "rental_games_search" or
         "net_games_detail" or "rental_games_detail" or "get_roles" or "create_role" or
+        "delete_role" or "cancel_delete_role" or
         "pe_net_games" or "pe_net_games_search" or "pe_rental_games" or
         "g79_net_game_address" or "g79_rental_game_address" or "g79_get_nickname" or
         "g79_set_nickname" or "java_edition/skin_list" or "java_edition/skin_details" or
@@ -50,6 +51,8 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
             "rental_games_detail" => GetRentalGameDetails(payload),
             "get_roles" => GetRoles(payload),
             "create_role" => CreateRole(payload),
+            "delete_role" => DeleteRole(payload),
+            "cancel_delete_role" => CancelDeleteRole(payload),
             "pe_net_games" => GetBedrockNetGames(),
             "pe_net_games_search" => SearchBedrockNetGames(payload),
             "pe_rental_games" => GetBedrockRentalGames(payload),
@@ -176,6 +179,48 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
         }
         // 创建结果通过 create_role/success_notification 推送，随后由网关发送 get_roles。
         return string.Empty;
+    }
+
+    private object DeleteRole(string? payload)
+    {
+        var request = ReadObject(payload);
+        var user = JavaUser(StringValue(request, UserIdKeys));
+        var entityId = RequiredString(request, "角色 ID", ["entity_id", "entityId"]);
+        ResolveGameId(request, "游戏 ID");
+        return StringValue(request, GameTypeKeys) switch
+        {
+            "net_game" => DeleteNetGameRole(user, entityId),
+            "rental_game" => DeleteRentalGameRole(user, entityId),
+            _ => throw new ArgumentException("未知的游戏类型。")
+        };
+    }
+
+    private object CancelDeleteRole(string? payload)
+    {
+        var request = ReadObject(payload);
+        var user = JavaUser(StringValue(request, UserIdKeys));
+        var entityId = RequiredString(request, "角色 ID", ["entity_id", "entityId"]);
+        ResolveGameId(request, "游戏 ID");
+        if (StringValue(request, GameTypeKeys) != "net_game")
+            throw new ArgumentException("只有网络服务器角色支持取消删除。");
+
+        EnsureSuccess(runtime.Accounts.Service.Launcher.CancelPreDeleteCharacter(user.UserId, user.AccessToken, entityId), "取消网络服务器角色删除失败");
+        return new { success = true };
+    }
+
+    private object DeleteNetGameRole(ManagedAvailableUser user, string entityId)
+    {
+        EnsureSuccess(runtime.Accounts.Service.Launcher.PreDeleteCharacter(user.UserId, user.AccessToken, entityId), "删除网络服务器角色失败");
+        return new { success = true };
+    }
+
+    private object DeleteRentalGameRole(ManagedAvailableUser user, string entityId)
+    {
+        var response = runtime.Accounts.Service.Launcher.DeleteRentalGameRole(user.UserId, user.AccessToken, entityId);
+        EnsureSuccess(response, "删除租赁服务器角色失败");
+        if (response.Data is null)
+            throw new InvalidDataException("删除租赁服务器角色响应为空。");
+        return new { success = true };
     }
 
     private object GetBedrockNetGames()

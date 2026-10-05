@@ -4,6 +4,10 @@ namespace FandNEL.Core.Entities.WPFLauncher.NetGame;
 
 public class EntityGameCharacter
 {
+	[JsonPropertyName("entity_id")]
+	public string EntityId { get; set; } = string.Empty;
+
+
 	[JsonPropertyName("game_id")]
 	public string GameId { get; set; } = string.Empty;
 

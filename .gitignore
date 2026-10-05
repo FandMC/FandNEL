@@ -21,3 +21,4 @@ cppusers.json
 node_modules/
 dist/
 .gocache*/
+.build*

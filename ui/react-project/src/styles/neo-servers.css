@@ -308,6 +308,10 @@
 .role-row-actions .role-launch-btn { background: var(--accent); color: #fff; border-color: var(--accent); }
 .role-row-actions .role-launch-btn:hover { opacity: 0.85; }
 .role-row-actions .role-white-btn { background: var(--surface); color: var(--text); }
+.role-row-actions .role-delete-btn { color: #c0392b; border-color: #e7b4ae; }
+.role-row-actions .role-delete-btn:hover { background: #fff5f3; border-color: #c0392b; }
+.role-row-actions .role-cancel-btn { color: #8a5a00; border-color: #e5c27a; }
+.role-row-actions .role-cancel-btn:hover { background: #fffaf0; border-color: #8a5a00; }
 
 .detail-add-role-btn {
   display: flex; align-items: center; justify-content: center; gap: 6px;

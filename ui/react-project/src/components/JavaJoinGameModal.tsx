@@ -52,6 +52,10 @@ function roleUnavailable(role: Role, kind: JavaGameKind): boolean {
   return Number(role[kind === "rental_game" ? "delete_ts" : "expire_time"] ?? 0) !== 0;
 }
 
+function roleEntityId(role: Role): string {
+  return value(role, "entity_id") || value(role, "entityId") || value(role, "id");
+}
+
 function messagesAfter(messages: GatewayMessage[], lastHandled: GatewayMessage | null): GatewayMessage[] {
   if (!lastHandled) return messages;
   const index = messages.lastIndexOf(lastHandled);
@@ -203,8 +207,10 @@ export function JavaGameLaunchControls({
   const [password, setPassword] = useState(initialPassword);
   const [passwordError, setPasswordError] = useState("");
   const [createRoleOpen, setCreateRoleOpen] = useState(false);
+  const [deletingRole, setDeletingRole] = useState<string | null>(null);
   const handledMessageRef = useRef<GatewayMessage | null>(gateway.messages.at(-1) ?? null);
   const pendingLaunchRef = useRef<PendingLaunch | null>(null);
+  const pendingRoleActionRef = useRef<{ identify: string; entityId: string; accountId: string } | null>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const selectedAccount = accounts[accountIndex] ?? null;
   const requiresPassword = kind === "rental_game" && value(details, "has_pwd") === "1";
@@ -297,6 +303,36 @@ export function JavaGameLaunchControls({
     }
   };
 
+  const deleteRole = async (role: Role) => {
+    if (!selectedAccount || activeLaunch || deletingRole) return;
+    const entityId = roleEntityId(role);
+    if (!entityId) {
+      notify("角色缺少 EntityID，无法操作。", "error");
+      return;
+    }
+    const pendingNetworkDelete = kind === "net_game" && roleUnavailable(role, kind);
+    if (kind === "rental_game" && roleUnavailable(role, kind)) return;
+    const prompt = pendingNetworkDelete
+      ? `确定取消角色“${value(role, "name")}”的删除吗？`
+      : kind === "rental_game"
+        ? `确定删除租赁服务器角色“${value(role, "name")}”吗？`
+        : `确定删除网络服务器角色“${value(role, "name")}”吗？删除后将进入等待期。`;
+    if (!window.confirm(prompt)) return;
+    setDeletingRole(entityId);
+    try {
+      const identify = await gateway.send(pendingNetworkDelete ? "cancel_delete_role" : "delete_role", {
+        id: value(selectedAccount, "id"),
+        game: gameId,
+        type: kind,
+        entity_id: entityId,
+      });
+      pendingRoleActionRef.current = { identify, entityId, accountId: value(selectedAccount, "id") };
+    } catch (error) {
+      setDeletingRole(null);
+      notify(error instanceof Error ? error.message : "无法操作角色。", "error");
+    }
+  };
+
   useEffect(() => {
     const pending = messagesAfter(gateway.messages, handledMessageRef.current);
     for (const message of pending) {
@@ -310,6 +346,30 @@ export function JavaGameLaunchControls({
       } else if (message.type === "get_roles") {
         setRoles(records(message.payload));
         setLoadingRoles(false);
+      }
+      const roleAction = pendingRoleActionRef.current;
+      if (roleAction && message.type === "error_notification" && message.identify === roleAction.identify) {
+        setDeletingRole(null);
+        pendingRoleActionRef.current = null;
+        notify(typeof message.payload === "string" ? message.payload : "角色操作失败。", "error");
+      } else if (roleAction && (message.type === "delete_role" || message.type === "cancel_delete_role") && message.identify === roleAction.identify) {
+        const response = parsePayload(message.payload);
+        const record = response && typeof response === "object" && !Array.isArray(response) ? response as Record<string, unknown> : null;
+        if (record?.code !== undefined && Number(record.code) !== 0) {
+          setDeletingRole(null);
+          pendingRoleActionRef.current = null;
+          notify(value(record, "message") || "角色操作失败。", "error");
+        } else if (selectedAccount && value(selectedAccount, "id") === roleAction.accountId) {
+          void requestRoles(selectedAccount).catch((error) => {
+            setDeletingRole(null);
+            notify(error instanceof Error ? error.message : "无法刷新角色列表。", "error");
+          });
+          setDeletingRole(null);
+          pendingRoleActionRef.current = null;
+        } else {
+          setDeletingRole(null);
+          pendingRoleActionRef.current = null;
+        }
       }
       const request = pendingLaunchRef.current;
       if (!request?.identify || message.identify !== request.identify) continue;
@@ -338,7 +398,7 @@ export function JavaGameLaunchControls({
       }
     }
     handledMessageRef.current = gateway.messages.at(-1) ?? null;
-  }, [accountIndex, gateway.messages, navigate, notify, requestRoles, sendLaunch]);
+  }, [accountIndex, gateway.messages, navigate, notify, requestRoles, selectedAccount, sendLaunch]);
 
   const chooseAccount = (index: number) => {
     setAccountIndex(index);
@@ -367,12 +427,16 @@ export function JavaGameLaunchControls({
           {loadingRoles ? <div className="detail-no-roles">加载中...</div> : roles.length === 0 ? <div className="detail-no-roles">暂无角色，请添加</div> : roles.map((role, index) => {
             const unavailable = roleUnavailable(role, kind);
             const roleName = value(role, "name");
+            const entityId = roleEntityId(role);
+            const networkDeletePending = kind === "net_game" && unavailable;
+            const actionBusy = deletingRole === entityId;
             return (
-              <div className={`role-row${unavailable ? " role-row-unavailable" : ""}`} key={`${value(role, "id") || roleName}-${index}`}>
+              <div className={`role-row${unavailable ? " role-row-unavailable" : ""}`} key={`${entityId || roleName}-${index}`}>
                 <div className="role-row-left"><div className="role-row-name">{roleName}</div>{unavailable ? <div className="role-ban-info">删除中</div> : null}</div>
                 <div className="role-row-actions">
                   <button className={`role-launch-btn${activeLaunch?.action === "proxy" && activeLaunch.role === roleName ? " btn-loading" : ""}`} type="button" disabled={unavailable || Boolean(activeLaunch) || !selectedAccount} onClick={() => void launchRole("proxy", role)}>启动</button>
                   <button className={`role-white-btn${activeLaunch?.action === "game" && activeLaunch.role === roleName ? " btn-loading" : ""}`} type="button" disabled={unavailable || Boolean(activeLaunch) || !selectedAccount} onClick={() => void launchRole("game", role)}>白端</button>
+                  <button className={`role-delete-btn${networkDeletePending ? " role-cancel-btn" : ""}`} type="button" disabled={!selectedAccount || Boolean(activeLaunch) || actionBusy || !entityId || (kind === "rental_game" && unavailable)} onClick={() => void deleteRole(role)}>{actionBusy ? "处理中..." : networkDeletePending ? "取消" : "删除"}</button>
                 </div>
               </div>
             );
