@@ -1,4 +1,3 @@
-using System.Net.Http;
 using System.Security.Cryptography;
 using FandNEL.GameLauncher.Models;
 
@@ -46,22 +45,17 @@ public sealed class HttpResourceDownloader : IResourceDownloader
             var temporaryPath = targetPath + $".fandnel-{Guid.NewGuid():N}.part";
             try
             {
-                using var response = await _httpClient.GetAsync(
+                await FastHttpDownloader.DownloadAsync(
+                    _httpClient,
                     resource.Source,
-                    HttpCompletionOption.ResponseHeadersRead,
-                    cancellationToken).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-                await using var input = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-                await using (var output = new FileStream(
                     temporaryPath,
-                    FileMode.CreateNew,
-                    FileAccess.Write,
-                    FileShare.None,
-                    64 * 1024,
-                    FileOptions.Asynchronous | FileOptions.SequentialScan))
-                {
-                    await input.CopyToAsync(output, cancellationToken).ConfigureAwait(false);
-                }
+                    (completed, total) => progress?.Report(new LaunchProgress(
+                        LaunchStage.Downloading,
+                        $"正在下载 {resource.RelativePath}",
+                        completed,
+                        total,
+                        resource.RelativePath)),
+                    cancellationToken).ConfigureAwait(false);
 
                 var actualLength = new FileInfo(temporaryPath).Length;
                 if (resource.ExpectedLength is { } expectedLength && actualLength != expectedLength)
@@ -79,7 +73,7 @@ public sealed class HttpResourceDownloader : IResourceDownloader
                     LaunchStage.Downloading,
                     $"已下载 {resource.RelativePath}。",
                     actualLength,
-                    response.Content.Headers.ContentLength,
+                    actualLength,
                     resource.RelativePath));
             }
             catch

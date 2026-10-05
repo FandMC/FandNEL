@@ -52,4 +52,6 @@ Proxy 默认从 `20018` 开始监听，遇到占用或 Windows 保留端口逐�
 
 ## 当前构建提示
 
-启动器使用 SharpCompress 安装网易 7z 资源。NuGet 当前会报告 SharpCompress 0.41.0 的 NU1902 审计提示；这不影响编译，但发布前应升级到修复该公告的可用版本。
+启动器使用 `FastHttpDownloader` 处理大文件的并发 Range 下载，服务端不支持分段时自动回退到顺序下载。客户端包的下载与前一个包的解压重叠执行，共享目录仍按基础包、版本包、库包的顺序写入。7z/zip 使用 `SharpSevenZip` 调用随程序发布的原生 `7z.dll` 整包解压，保留路径越界及目录链接检查、CRC 错误处理和取消支持；不得逐文件并行解压 solid 包。下载完成后仍由安装器执行 MD5/SHA-256 校验，只有校验和解压成功才写入安装标记。
+
+`SharpSevenZip` 使用 LGPL-3.0-or-later 许可证，[源码及许可证](https://github.com/JeremyAnsel/SharpSevenZip)公开可用；其原生 7-Zip 组件遵循 [7-Zip 许可证](https://www.7-zip.org/license.txt)，源码可从 [7-Zip 官网](https://www.7-zip.org/)获取。部署时须保留 EXE 同级 `x64/7z.dll` 和 `x86/7z.dll`，无需安装系统 7-Zip。

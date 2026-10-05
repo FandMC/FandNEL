@@ -19,19 +19,42 @@ internal sealed class MinecraftInstaller(WPFLauncher launcher, LauncherPaths pat
         if (baseResponse.Code != 0 || baseResponse.Data is null)
             throw new InvalidOperationException($"获取基础游戏资源失败：{baseResponse.Message}");
         var basePackage = baseResponse.Data;
-        await _archives.InstallAsync(basePackage.Url, Path.Combine(paths.Cache, "GameBase.7z"), paths.GameBase,
-            basePackage.Md5, progress, cancellationToken).ConfigureAwait(false);
 
         var response = await launcher.GetMinecraftClientLibsAsync(request.UserId, request.GetUserToken(), request.GameVersion).ConfigureAwait(false);
         if (response.Code != 0 || response.Data is null)
             throw new InvalidOperationException($"获取游戏版本资源失败：{response.Message}");
         var versionPackage = response.Data;
         var packageName = request.GameVersion.ToString();
-        await _archives.InstallAsync(versionPackage.Url, Path.Combine(paths.Cache, packageName + ".7z"), paths.GameBase,
-            versionPackage.Md5, progress, cancellationToken).ConfigureAwait(false);
-        await _archives.InstallAsync(versionPackage.CoreLibUrl, Path.Combine(paths.Cache, packageName + "_Lib.7z"), paths.Cache,
-            versionPackage.CoreLibMd5, progress, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        using var installationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var installationToken = installationCancellation.Token;
+
+        // 下载互相重叠；解压沿用基础包、版本包、库包的顺序，避免覆盖竞争。
+        var baseInstallation = CancelOnFailureAsync(_archives.InstallAsync(
+            basePackage.Url, Path.Combine(paths.Cache, "GameBase.7z"), paths.GameBase,
+            basePackage.Md5, progress, installationToken));
+        var versionInstallation = CancelOnFailureAsync(_archives.InstallAsync(
+            versionPackage.Url, Path.Combine(paths.Cache, packageName + ".7z"), paths.GameBase,
+            versionPackage.Md5, progress, installationToken, baseInstallation));
+        var librariesInstallation = CancelOnFailureAsync(_archives.InstallAsync(
+            versionPackage.CoreLibUrl, Path.Combine(paths.Cache, packageName + "_Lib.7z"), paths.Cache,
+            versionPackage.CoreLibMd5, progress, installationToken, versionInstallation));
+        await Task.WhenAll(baseInstallation, versionInstallation, librariesInstallation).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
         InstallLibraries(Path.Combine(paths.Cache, packageName + "_libs"), VersionName(request.GameVersion));
+
+        async Task CancelOnFailureAsync(Task installation)
+        {
+            try
+            {
+                await installation.ConfigureAwait(false);
+            }
+            catch
+            {
+                installationCancellation.Cancel();
+                throw;
+            }
+        }
     }
 
     public async Task<EntityModsList> PrepareModsAsync(JavaLaunchRequest request, IProgress<LaunchProgress>? progress, CancellationToken cancellationToken)

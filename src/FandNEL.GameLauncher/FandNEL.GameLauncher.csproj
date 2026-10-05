@@ -10,6 +10,17 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FandNEL.Core\FandNEL.Core.csproj" />
-    <PackageReference Include="SharpCompress" Version="0.50.4" />
+    <PackageReference Include="SharpSevenZip" Version="2.0.128" GeneratePathProperty="true" ExcludeAssets="build" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(PkgSharpSevenZip)/build/x64/7z.dll" Link="x64/7z.dll"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <None Include="$(PkgSharpSevenZip)/build/x86/7z.dll" Link="x86/7z.dll"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <None Include="$(PkgSharpSevenZip)/LICENSE" Link="licenses/SharpSevenZip-LICENSE.txt"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <None Update="Assets/licenses/7-Zip-LICENSE.txt" Link="licenses/7-Zip-LICENSE.txt"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
   </ItemGroup>
 </Project>

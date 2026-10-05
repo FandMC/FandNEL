@@ -10,7 +10,15 @@ namespace FandNEL.GameLauncher.Services.Java;
 /// <summary>Java 客户端完整编排：认证、资源、模组、启动参数和生命周期。</summary>
 public sealed class JavaLauncherService(WPFLauncher launcher, LauncherPaths paths, HttpClient? httpClient = null)
 {
-    private readonly HttpClient _http = httpClient ?? new HttpClient();
+    private readonly HttpClient _http = httpClient ?? CreateHttpClient();
+
+    private static HttpClient CreateHttpClient() => new(new SocketsHttpHandler
+    {
+        MaxConnectionsPerServer = 16
+    })
+    {
+        Timeout = TimeSpan.FromMinutes(10)
+    };
 
     public async Task<JavaGameHandle> LaunchAsync(
         JavaLaunchRequest request,
