@@ -38,13 +38,15 @@ function accountLabel(account: GatewayAccount): string {
 
 function JavaSkinCard({ skin, onSelect }: { skin: JavaSkin; onSelect(): void }) {
   return (
-    <button className="skin-market-card" type="button" onClick={onSelect}>
-      <span className="skin-market-media">
-        {skin.title_image_url ? <img src={skin.title_image_url} alt={`${skin.name} 皮肤`} /> : <span />}
-      </span>
-      <span className="skin-market-body">
-        <span className="skin-market-heading"><strong>{skin.name}</strong><small>{skin.like_num} 次点赞</small></span>
-        <span className="skin-market-summary">{skin.brief_summary}</span>
+    <button className="neo-skin-card" type="button" aria-label={`应用 ${skin.name} 皮肤`} onClick={onSelect}>
+      <span className="neo-skin-placeholder" />
+      {skin.title_image_url ? <img className="neo-skin-image" src={skin.title_image_url} alt={`${skin.name} 皮肤`} loading="lazy" onError={(event) => { event.currentTarget.hidden = true; }} /> : null}
+      <span className="neo-skin-gradient" />
+      <span className="neo-skin-body">
+        <strong className="neo-skin-name" title={skin.name}>{skin.name}</strong>
+        <span className="neo-skin-summary" title={skin.brief_summary}>{skin.brief_summary}</span>
+        <small className="neo-skin-likes">{skin.like_num} 次点赞</small>
+        <span className="neo-skin-apply">应用</span>
       </span>
     </button>
   );
@@ -159,7 +161,7 @@ function ApplySkinModal({ skinId, onClose }: { skinId: string; onClose(): void }
 
   return (
     <div className="legacy-modal-backdrop skin-apply-backdrop" role="presentation" onMouseDown={close}>
-      <section className="legacy-modal skin-apply-modal" role="dialog" aria-modal="true" aria-label="应用皮肤" onMouseDown={(event) => event.stopPropagation()}>
+      <section className="legacy-modal skin-apply-modal neo-skin-modal" role="dialog" aria-modal="true" aria-label="应用皮肤" onMouseDown={(event) => event.stopPropagation()}>
         {state === "idle" ? (
           <>
             <header className="legacy-modal-header"><h2>选择账号</h2><button type="button" aria-label="关闭" onClick={close}><X /></button></header>
@@ -195,6 +197,7 @@ export function JavaSkinsPage() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [selectedSkinId, setSelectedSkinId] = useState<string | null>(null);
+  const pageRef = useRef<HTMLElement>(null);
   const offsetRef = useRef(0);
   const requestInFlight = useRef(false);
   const previousMessage = useRef<GatewayMessage | undefined>(gateway.messages.at(-1));
@@ -246,11 +249,16 @@ export function JavaSkinsPage() {
   }, [gateway.messages, notify]);
 
   useEffect(() => {
+    const container = pageRef.current?.closest<HTMLElement>(".neo-content");
     const onScroll = () => {
-      if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 200) void loadMore();
+      const nearBottom = container
+        ? container.scrollTop + container.clientHeight >= container.scrollHeight - 200
+        : window.innerHeight + window.scrollY >= document.body.offsetHeight - 200;
+      if (nearBottom) void loadMore();
     };
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
+    const scrollTarget = container ?? window;
+    scrollTarget.addEventListener("scroll", onScroll);
+    return () => scrollTarget.removeEventListener("scroll", onScroll);
   }, [loadMore]);
 
   const reload = () => {
@@ -261,14 +269,15 @@ export function JavaSkinsPage() {
   };
 
   return (
-    <main className="workspace-page skins-page">
-      <section className="server-browser-header"><div><h1>皮肤</h1><p>购买并使用自定义 Minecraft 角色皮肤</p></div></section>
-      <section className="skin-market-grid">
+    <main className="workspace-page skins-page neo-skins-page" ref={pageRef}>
+      <header className="neo-management-header"><div><h1>皮肤</h1><p>浏览和应用 Minecraft 角色皮肤</p></div></header>
+      {!skins.length && !loading && !hasMore ? <div className="neo-management-empty">暂无皮肤</div> : null}
+      <section className="neo-skin-grid">
         {skins.map((skin, index) => <JavaSkinCard skin={skin} onSelect={() => setSelectedSkinId(skin.entity_id)} key={`skin-${index}-${skin.entity_id}`} />)}
       </section>
-      <div className="server-list-footer">
+      <div className="neo-skin-list-footer">
         {loading ? <div>正在加载更多皮肤…</div> : null}
-        {!hasMore && !loading ? <><div>已加载全部皮肤</div><button type="button" onClick={reload}>重新加载</button></> : null}
+        {!hasMore && !loading ? <><div>已加载全部皮肤</div><button className="neo-management-button" type="button" onClick={reload}>重新加载</button></> : null}
       </div>
       {selectedSkinId ? <ApplySkinModal skinId={selectedSkinId} onClose={() => setSelectedSkinId(null)} /> : null}
     </main>

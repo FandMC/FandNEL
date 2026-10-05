@@ -126,10 +126,14 @@ public sealed class GameCatalogMessages(GatewayRuntime runtime, Func<G79> bedroc
         var (gameId, password) = SplitGameAndPassword(payload);
         var launcher = runtime.Accounts.Service.Launcher;
         var detail = launcher.GetRentalGameDetails(user.UserId, user.AccessToken, gameId);
-        var address = launcher.GetRentalGameServerAddress(user.UserId, user.AccessToken, gameId, password);
         EnsureSuccess(detail, "获取租赁服务器详情失败");
-        EnsureSuccess(address, "获取租赁服务器地址失败");
         var data = detail.Data ?? throw new InvalidDataException("租赁服务器详情为空。");
+        // 有密码的服务器先展示公开详情，启动前携带密码再次请求并校验地址。
+        if (data.HasPassword == "1" && string.IsNullOrWhiteSpace(password))
+            return data;
+
+        var address = launcher.GetRentalGameServerAddress(user.UserId, user.AccessToken, gameId, password);
+        EnsureSuccess(address, "获取租赁服务器地址失败");
         var endpoint = address.Data ?? throw new InvalidDataException("租赁服务器地址为空。");
         data.ServerIp = endpoint.McServerHost;
         data.ServerPort = endpoint.McServerPort;

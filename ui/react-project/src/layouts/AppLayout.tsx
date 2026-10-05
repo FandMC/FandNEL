@@ -5,21 +5,69 @@ import {
   Shield,
   TriangleAlert,
   UserRound,
-  Menu,
   X,
+  House,
+  Server,
+  Cloud,
+  Shirt,
+  Gamepad2,
+  Settings,
 } from "lucide-react";
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Brand } from "../components/ui";
 import { useGateway, useToasts } from "../context/AppContext";
 import { consumeGatewayMessages } from "../pages/user-center/gatewayData";
 import type { GatewayMessage, ToastMessage } from "../types";
 
+type WindowAction = "window:drag" | "window:maximize" | "window:minimize" | "window:close";
+type NativeWindowBridge = { sendMessage?(message: string): void };
+
 export function AppLayout() {
+  const { notify } = useToasts();
+  const nativeBridge = window.external as unknown as NativeWindowBridge | undefined;
+  const hasWindowControls = typeof nativeBridge?.sendMessage === "function";
+
+  const sendWindowAction = (action: WindowAction) => {
+    try {
+      nativeBridge?.sendMessage?.(JSON.stringify({ action }));
+    } catch {
+      notify("窗口操作失败。", "error");
+    }
+  };
+
   return (
-    <div className="app-root">
-      <header className="topbar">
-        <Brand />
+    <div className="app">
+      <header className="titlebar" aria-label="FandNEL">
+        <div
+          className="titlebar-drag"
+          onMouseDown={(event) => {
+            if (hasWindowControls && event.button === 0 && event.detail === 1) sendWindowAction("window:drag");
+          }}
+          onDoubleClick={() => { if (hasWindowControls) sendWindowAction("window:maximize"); }}
+        >
+          <div className="titlebar-left" inert>
+            <svg className="titlebar-logo" width="22" height="22" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+              <path
+                d="M139.977 53.454C130.158 56.794 125.43 62.784 122.21 72.112c-.831 2.492-2.91 5.248-5.247 7.103l8.052 8.799-25.56-18.234-70.549-50.249s5.091 33.711 6.857 46.115c1.247 8.745 3.377 12.667 10.131 16.644l14.339 7.738-6.91-3.657 31.898 17.756-.208.478-34.339-16.22c1.818 6.361 5.35 18.605 6.857 24.012 1.61 5.83 3.429 7.95 8.988 10.018l10.234 3.816 6.338-2.544-8.052 5.46-40.262 52.103c26.754-25.336 49.405-34.347 65.977-41.715 21.144-9.329 33.871-15.318 42.184-36.839 5.922-15.106 10.545-34.452 16.417-41.927l12.52-16.324s-25.924 6.995-31.898 9.01Z"
+                fill="#086DA4"
+              />
+            </svg>
+            <span className="titlebar-title">FandNEL</span>
+          </div>
+        </div>
+        {hasWindowControls ? (
+          <div className="titlebar-controls">
+            <button type="button" className="tb-btn tb-close" onClick={() => sendWindowAction("window:close")} title="关闭" aria-label="关闭窗口">
+              <svg className="tb-icon" width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><line x1="1" y1="1" x2="7" y2="7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /><line x1="7" y1="1" x2="1" y2="7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>
+            </button>
+            <button type="button" className="tb-btn tb-minimize" onClick={() => sendWindowAction("window:minimize")} title="最小化" aria-label="最小化窗口">
+              <svg className="tb-icon" width="8" height="2" viewBox="0 0 8 2" aria-hidden="true"><rect width="8" height="1.5" rx="0.75" fill="currentColor" /></svg>
+            </button>
+            <button type="button" className="tb-btn tb-maximize" onClick={() => sendWindowAction("window:maximize")} title="最大化或还原" aria-label="最大化或还原窗口">
+              <svg className="tb-icon" width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><path d="M1 3L4 0.5 7 3M1 5L4 7.5 7 5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          </div>
+        ) : null}
       </header>
       <Outlet />
       <ToastViewport />
@@ -27,46 +75,68 @@ export function AppLayout() {
   );
 }
 
-const userCenterGroups = [
-  { title: "General", links: [["/user-center", "Dashboard"]] },
-  {
-    title: "Java Edition",
-    links: [
-      ["/user-center/servers", "Servers"],
-      ["/user-center/rentals", "Rental Servers"],
-      ["/user-center/java-skins", "Skins"],
-    ],
-  },
-  {
-    title: "Bedrock Edition",
-    links: [
-      ["/user-center/bedrock", "Servers"],
-      ["/user-center/rentals-for-bedrock", "Rental Servers"],
-      ["/user-center/bedrock-realms", "Realms"],
-    ],
-  },
-  {
-    title: "Advanced",
-    links: [
-      ["/user-center/launchers", "Games"],
-      ["/user-center/settings", "Settings"],
-      ["/user-center/mods", "Mods"],
-    ],
-  },
-] as const;
+const userCenterLinks: Array<
+  | { to: string; label: string; Icon: typeof House }
+  | { divider: true }
+> = [
+  { to: "/user-center", label: "概括", Icon: House },
+  { divider: true },
+  { to: "/user-center/servers", label: "网络服务器", Icon: Server },
+  { to: "/user-center/rentals", label: "租赁服务器", Icon: Cloud },
+  { divider: true },
+  { to: "/user-center/bedrock", label: "网络服务器(PE)", Icon: Server },
+  { to: "/user-center/rentals-for-bedrock", label: "租赁服务器(PE)", Icon: Cloud },
+  { divider: true },
+  { to: "/user-center/launchers", label: "游戏会话", Icon: Gamepad2 },
+  { to: "/user-center/java-skins", label: "皮肤", Icon: Shirt },
+  { divider: true },
+  { to: "/user-center/settings", label: "设置", Icon: Settings },
+];
 
 export function UserCenterLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const gateway = useGateway();
   const { notify } = useToasts();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [captchaRequest, setCaptchaRequest] = useState<{ accountId: string; error: string } | null>(null);
   const lastCaptchaMessageRef = useRef(gateway.messages.at(-1));
   const lastNotificationMessageRef = useRef<GatewayMessage | undefined>(gateway.messages.at(-1));
   const notificationAudioRef = useRef<HTMLAudioElement>(null);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const indicatorRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLElement>(null);
 
-  useEffect(() => setSidebarOpen(false), [location.pathname]);
+  useLayoutEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [location.pathname, location.search]);
+
+  const updateIndicator = useCallback(() => {
+    const sidebar = sidebarRef.current;
+    const indicator = indicatorRef.current;
+    const active = sidebar?.querySelector<HTMLElement>(".nav-item.active");
+    if (!sidebar || !indicator) return;
+    if (!active) {
+      indicator.style.opacity = "0";
+      return;
+    }
+    const sidebarRect = sidebar.getBoundingClientRect();
+    const itemRect = active.getBoundingClientRect();
+    indicator.style.top = `${itemRect.top - sidebarRect.top + sidebar.scrollTop + 8}px`;
+    indicator.style.height = `${itemRect.height - 16}px`;
+    indicator.style.opacity = "1";
+  }, []);
+
+  useEffect(() => {
+    updateIndicator();
+    window.addEventListener("resize", updateIndicator);
+    const observer = new ResizeObserver(updateIndicator);
+    if (sidebarRef.current) observer.observe(sidebarRef.current);
+    return () => {
+      window.removeEventListener("resize", updateIndicator);
+      observer.disconnect();
+    };
+  }, [location.pathname, updateIndicator]);
+
   useEffect(() => {
     const pending = consumeGatewayMessages(gateway.messages, lastNotificationMessageRef);
     const errorTypes = ["error_notification", "error_notification_back", "error_notification_rb", "error_notification_rt"];
@@ -140,47 +210,28 @@ export function UserCenterLayout() {
   }, [gateway.messages]);
 
   return (
-    <div className="workspace">
+    <div className="app-body">
       <audio ref={notificationAudioRef} src="/notify.mp3" preload="auto" />
-      <button
-        className="sidebar-toggle"
-        type="button"
-        aria-label="Toggle menu"
-        aria-expanded={sidebarOpen}
-        onClick={() => setSidebarOpen((open) => !open)}
-      >
-        {sidebarOpen ? <X /> : <Menu />}
-      </button>
-      <button
-        className={`sidebar-backdrop ${sidebarOpen ? "sidebar-backdrop-open" : ""}`}
-        type="button"
-        aria-label="Close menu"
-        onClick={() => setSidebarOpen(false)}
-      />
-      <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
-        <nav aria-label="User center navigation">
-          {userCenterGroups.map((group) => (
-            <div className="sidebar-group" key={group.title}>
-              <h3>{group.title}</h3>
-              <ul>
-                {group.links.map(([to, label]) => (
-                  <li key={to}>
-                    <NavLink
-                      to={to}
-                      end={to === "/user-center"}
-                      className={({ isActive }) => (isActive ? "active" : undefined)}
-                    >
-                      <span>{label}</span>
-                    </NavLink>
-                  </li>
-                ))}
-              </ul>
-              <div className="sidebar-separator" role="separator" />
-            </div>
-          ))}
-        </nav>
-      </aside>
-      <main className="workspace-content"><Outlet /></main>
+      <nav ref={sidebarRef} className="sidebar" aria-label="用户中心导航">
+        <div className="nav-indicator" ref={indicatorRef} aria-hidden="true" />
+        {userCenterLinks.map((item, index) => "divider" in item ? (
+          <div className="nav-divider nav-item-enter" role="separator" key={`divider-${index}`} style={{ animationDelay: `${index * 30}ms` }} />
+        ) : (
+          <NavLink
+            to={item.to}
+            end={item.to === "/user-center"}
+            className={({ isActive }) => `nav-item nav-item-enter${isActive ? " active" : ""}`}
+            style={{ animationDelay: `${index * 30}ms` }}
+            key={item.to}
+          >
+            <span className="nav-icon"><item.Icon size={16} strokeWidth={1.3} aria-hidden="true" /></span>
+            {item.label}
+          </NavLink>
+        ))}
+      </nav>
+      <main ref={contentRef} className="content content-main">
+        <div className="page-content page-slide-up" key={location.pathname}><Outlet /></div>
+      </main>
       {captchaRequest ? (
         <GlobalCaptchaModal
           key={captchaRequest.accountId}
@@ -284,7 +335,7 @@ export function SettingsLayout() {
 function ToastViewport() {
   const { toasts, dismiss } = useToasts();
   return (
-    <div className="toast-viewport" aria-live="polite">
+    <div className="toast-viewport neo-island-viewport" aria-live="polite">
       {toasts.map((toast) => (
         <ToastCard key={toast.id} toast={toast} onDismiss={dismiss} />
       ))}
@@ -329,7 +380,7 @@ function ToastCard({ toast, onDismiss }: { toast: ToastMessage; onDismiss(id: st
 
   return (
     <article
-      className={`toast toast-${toast.tone}${closing ? " toast-closing" : ""}`}
+      className={`toast neo-island toast-${toast.tone}${closing ? " toast-closing" : ""}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       role={toast.tone === "error" ? "alert" : "status"}

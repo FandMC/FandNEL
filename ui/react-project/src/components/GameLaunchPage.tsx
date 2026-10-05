@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { SkinViewer, WalkingAnimation } from "skinview3d";
 import { useGateway, useToasts } from "../context/AppContext";
 import { loadGatewaySettings } from "../lib/settingsStorage";
@@ -78,28 +79,7 @@ function decodeSkin(payload: unknown): number[] {
 }
 
 function BackIcon() {
-  return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 18L9 12L15 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-}
-
-function EditIcon() {
-  return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 17.25V21h3.75L17.81 10.94l-3.75-3.75L4 17.25zM20.71 7.04a1.003 1.003 0 000-1.42l-2.34-2.34a1.003 1.003 0 00-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z" fill="currentColor" /></svg>;
-}
-
-function ShuffleIcon() {
-  return <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>;
-}
-
-function ChevronIcon() {
-  return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
-}
-
-function Spinner() {
-  return (
-    <svg className="game-launch-spinner" width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle opacity=".25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path opacity=".75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-    </svg>
-  );
+  return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M10 12L6 8l4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
 function SkinPreview({ skinBytes, fallbackSkinUrl }: { skinBytes: number[]; fallbackSkinUrl?: string }) {
@@ -210,20 +190,16 @@ function AccountSelector({ accounts, selected, onChange }: { accounts: Account[]
   }, []);
 
   return (
-    <div className="game-account-select" ref={rootRef}>
-      <button type="button" className={`game-account-trigger ${open ? "open" : ""}`} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-        <span><small>选择账号</small><strong>{selected ? accountText(selected) : "请选择"}</strong></span>
-        <span className="game-account-chevron"><ChevronIcon /></span>
+    <div className={`custom-select${open ? " open" : ""}`} ref={rootRef}>
+      <button type="button" className="custom-select-trigger" aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        {selected ? accountText(selected) : "选择账号"}
       </button>
-      {open ? (
-        <ul className="game-account-menu" role="listbox" aria-label="选择账号">
-          {accounts.map((account, index) => (
-            <li key={`${accountId(account)}-${index}`}>
-              <button type="button" role="option" aria-selected={account === selected} className={account === selected ? "selected" : ""} onClick={() => { onChange(account); setOpen(false); }}>{accountText(account)}</button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      <svg className="custom-select-arrow" width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M0 0l5 6 5-6z" fill="currentColor" /></svg>
+      <div className="custom-select-dropdown" role="listbox" aria-label="选择账号">
+        {accounts.length === 0 ? <div className="custom-select-empty">没有已登录的游戏账号</div> : accounts.map((account) => (
+          <button type="button" key={accountId(account)} role="option" aria-selected={accountId(account) === accountId(selected ?? "")} className={`custom-select-option${accountId(account) === accountId(selected ?? "") ? " selected" : ""}`} onClick={() => { onChange(account); setOpen(false); }}>{accountText(account)}</button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -232,11 +208,11 @@ function SkinPicker({ onClose, localSkins, onSelect, currentSkin }: { onClose():
   const [localSelected, setLocalSelected] = useState<string | null>(currentSkin || null);
 
   return (
-    <div className="skin-picker-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="skin-picker" role="dialog" aria-modal="true" aria-label="皮肤预览" onMouseDown={(event) => event.stopPropagation()}>
-        <header><h2>皮肤预览</h2><button type="button" aria-label="关闭" onClick={onClose}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg></button></header>
-        {localSkins.length > 0 ? <div className="skin-picker-grid">{localSkins.map((skin) => <SkinThumbnail key={skin} skin={[skin, skin]} selected={localSelected === skin} onSelect={() => setLocalSelected(skin)} skinUrl={skin.endsWith(".zip") ? `/api/skins/thumbnail?file=${encodeURIComponent(skin)}` : `/skins/${skin}`} />)}</div> : <p className="skin-picker-empty">未在 resources/skins 中找到皮肤</p>}
-        <footer><button type="button" onClick={onClose}>取消</button>{localSelected ? <button className="primary" type="button" onClick={() => { onSelect(localSelected); onClose(); }}>选择</button> : null}</footer>
+    <div className="dialog-overlay neo-bedrock-skin-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="dialog-box neo-bedrock-skin-dialog" role="dialog" aria-modal="true" aria-label="皮肤预览">
+        <header className="dialog-header"><h3>皮肤预览</h3><button className="dialog-close" type="button" aria-label="关闭" onClick={onClose}>&times;</button></header>
+        <div className="dialog-body">{localSkins.length > 0 ? <div className="skin-picker-grid">{localSkins.map((skin) => <SkinThumbnail key={skin} skin={[skin, skin]} selected={localSelected === skin} onSelect={() => setLocalSelected(skin)} skinUrl={skin.endsWith(".zip") ? `/api/skins/thumbnail?file=${encodeURIComponent(skin)}` : `/skins/${skin}`} />)}</div> : <p className="detail-no-roles">未在 resources/skins 中找到皮肤</p>}</div>
+        <footer className="dialog-footer"><button className="btn-secondary" type="button" onClick={onClose}>取消</button>{localSelected ? <button className="btn-accent" type="button" onClick={() => { onSelect(localSelected); onClose(); }}>选择</button> : null}</footer>
       </section>
     </div>
   );
@@ -253,12 +229,23 @@ function readRealmModItemIds(sid: string): string[] {
 
 export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { status, send, messages } = useGateway();
   const { notify } = useToasts();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
   const [nickname, setNickname] = useState("");
+  const [nicknameLoading, setNicknameLoading] = useState(false);
+  const [roleSettingsOpen, setRoleSettingsOpen] = useState(false);
+  const [nicknameDraft, setNicknameDraft] = useState("");
+  const [nicknameError, setNicknameError] = useState("");
+  const [nicknameSaving, setNicknameSaving] = useState(false);
+  const nicknameRequestRef = useRef<{ userId: string; nickname: string; identify: string } | null>(null);
+  const nicknameLoadRef = useRef<{ userId: string; identify: string } | null>(null);
+  const pendingAddressLaunchRef = useRef<{ interceptor: boolean; identify: string; endpoint?: { host: string; port: number; userId: string } } | null>(null);
+  const [nicknameRequestVersion, setNicknameRequestVersion] = useState(0);
+  const [failedImage, setFailedImage] = useState("");
   const [address, setAddress] = useState({ host: "", port: 0 });
   const [skinBytes, setSkinBytes] = useState<number[]>([]);
   const [launching, setLaunching] = useState(false);
@@ -280,6 +267,12 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
   const realms = kind === "realms";
   const domainRealm = kind === "realm";
   const userId = selectedAccount ? accountId(selectedAccount) : "";
+  const server = recordPayload(recordPayload(location.state).server);
+  const images = Array.isArray(server.pic_url_list) ? server.pic_url_list.map(String) : [];
+  const image = images.find((value) => value.trim()) ?? String(server.title_image_url ?? server.image_url ?? "");
+  const description = String(server.brief ?? server.description ?? server.brief_summary ?? "").replace(/<img[^>]*>/gi, "");
+  const passwordFlag = [server.has_pwd, server.has_password, server.hasPassword, server.password_required].find((value) => value !== undefined && value !== null);
+  const requiresPassword = realms && (searchParams.has("password") || (passwordFlag !== undefined && !["", "0", "false", "no", "none", "null"].includes(String(passwordFlag).toLowerCase())));
 
   const showError = useCallback((error: unknown, fallback: string) => {
     notify(error instanceof Error ? error.message : fallback, "error");
@@ -291,15 +284,23 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
     setAccounts(accountsRef.current);
     setSelectedAccount(null);
     setNickname("");
+    setNicknameLoading(false);
+    setRoleSettingsOpen(false);
+    setNicknameDraft("");
+    setNicknameError("");
+    setNicknameSaving(false);
+    nicknameRequestRef.current = null;
+    nicknameLoadRef.current = null;
+    pendingAddressLaunchRef.current = null;
     setAddress({ host: "", port: 0 });
     setSkinBytes([]);
     setLaunching(false);
     setJoining(false);
-    setRentalPassword("");
+    setRentalPassword(searchParams.get("password") ?? "");
     setPasswordPromptOpen(false);
     setPasswordError("");
     addressUserIdRef.current = "";
-  }, [id, realms]);
+  }, [id, realms, searchParams]);
 
   useEffect(() => {
     if (status !== "connected") return;
@@ -320,6 +321,8 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
       addressUserIdRef.current = searchParams.get("user_id") ?? "";
       setAddress({ host, port });
       void send("get_accounts", "available-for-mobile").catch(() => {});
+    } else if (requiresPassword) {
+      void send("get_accounts", "available-for-mobile").catch((error) => showError(error, "无法加载启动设置。"));
     } else {
       const addressType = realms ? "g79_rental_game_address" : "g79_net_game_address";
       const addressPayload = realms ? { game: id, password: searchParams.get("password") ?? "" } : { game: id };
@@ -328,7 +331,7 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
         send(addressType, addressPayload),
       ]).catch((error) => showError(error, "无法加载启动设置。"));
     }
-  }, [domainRealm, id, realms, searchParams, send, showError, status]);
+  }, [domainRealm, id, realms, requiresPassword, searchParams, send, showError, status]);
 
   const requestRentalAddress = useCallback(async (password: string) => {
     await send("g79_rental_game_address", { game: id, password });
@@ -336,8 +339,18 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
 
   useEffect(() => {
     if (!userId || status !== "connected") return;
-    void send("g79_get_nickname", userId).catch((error) => showError(error, "无法加载昵称。"));
-  }, [send, showError, status, userId]);
+    setNickname("");
+    setNicknameLoading(true);
+    const identify = crypto.randomUUID();
+    nicknameLoadRef.current = { userId, identify };
+    void send("g79_get_nickname", userId, identify).catch((error) => {
+      setNicknameLoading(false);
+      setLaunching(false);
+      setJoining(false);
+      pendingAddressLaunchRef.current = null;
+      showError(error, "无法加载昵称。");
+    });
+  }, [nicknameRequestVersion, send, showError, status, userId]);
 
   useEffect(() => {
     const previous = handledMessageRef.current;
@@ -351,13 +364,39 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
         setAccounts(nextAccounts);
         setSelectedAccount(nextAccounts.find((account) => accountId(account) === addressUserIdRef.current) ?? nextAccounts[0] ?? null);
       } else if (message.type === "g79_get_nickname") {
+        if (message.identify !== nicknameLoadRef.current?.identify) continue;
+        nicknameLoadRef.current = null;
+        setNicknameLoading(false);
         const error = gatewayErrorMessage(message.payload);
-        if (error) showError(new Error(error), "无法加载昵称。");
-        else if (typeof message.payload === "string") setNickname(message.payload);
+        const nicknamePayload = parsePayload(message.payload);
+        let nextNickname = "";
+        if (error) {
+          pendingAddressLaunchRef.current = null;
+          setLaunching(false);
+          setJoining(false);
+          showError(new Error(error), "无法加载昵称。");
+        } else if (typeof nicknamePayload === "string") nextNickname = nicknamePayload;
         else {
-          const payload = recordPayload(message.payload);
+          const payload = recordPayload(nicknamePayload);
           const nicknameValue = payload.nickname ?? payload.name ?? payload.role_name;
-          if (nicknameValue !== undefined) setNickname(String(nicknameValue));
+          if (nicknameValue !== undefined) nextNickname = String(nicknameValue);
+        }
+        if (!error) setNickname(nextNickname);
+        const pendingLaunch = pendingAddressLaunchRef.current;
+        if (!error && pendingLaunch?.endpoint) {
+          pendingAddressLaunchRef.current = null;
+          void sendLaunch(pendingLaunch.interceptor, pendingLaunch.endpoint, nextNickname);
+        }
+      } else if (message.type === "g79_set_nickname" && nicknameRequestRef.current) {
+        const request = nicknameRequestRef.current;
+        if (message.identify !== request.identify) continue;
+        nicknameRequestRef.current = null;
+        setNicknameSaving(false);
+        const error = gatewayErrorMessage(message.payload);
+        if (error) setNicknameError(error);
+        else if (request.userId === userId) {
+          setNickname(request.nickname);
+          setRoleSettingsOpen(false);
         }
       } else if (realms && (
         message.type === "g79_rental_game_password"
@@ -366,10 +405,17 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
         const error = gatewayErrorMessage(message.payload)
           || (typeof message.payload === "string" ? message.payload : "请输入租赁服密码。");
         setPasswordError(error);
+        pendingAddressLaunchRef.current = null;
+        setLaunching(false);
+        setJoining(false);
         setPasswordPromptOpen(true);
       } else if (message.type === (realms ? "g79_rental_game_address" : "g79_net_game_address")) {
         const responseError = gatewayErrorMessage(message.payload);
         if (responseError) {
+          pendingAddressLaunchRef.current = null;
+          setLaunching(false);
+          setJoining(false);
+          if (realms) setPasswordError(responseError);
           showError(new Error(responseError), "无法加载服务器地址。");
           continue;
         }
@@ -381,12 +427,27 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
             ? current
             : accountsRef.current.find((account) => accountId(account) === addressUserId) ?? current);
         }
-        setAddress({
+        const endpoint = {
           host: String(realms ? payload.mcserver_host ?? "" : payload.host ?? ""),
           port: Number(realms ? payload.mcserver_port ?? 0 : payload.port ?? 0),
-        });
+        };
+        setAddress(endpoint);
+        const pendingLaunch = pendingAddressLaunchRef.current;
+        if (pendingLaunch && pendingLaunch.identify === message.identify) {
+          pendingLaunch.endpoint = { ...endpoint, userId: addressUserId || userId };
+          setNicknameRequestVersion((value) => value + 1);
+        }
+      } else if (message.type === "g79_launch_game" || message.type === "g79_join_game") {
+        const error = gatewayErrorMessage(message.payload);
+        if (error) {
+          setLaunching(false);
+          setJoining(false);
+          showError(new Error(error), "无法启动基岩版游戏。");
+        }
       } else if (message.type === "g79_query_skin" || message.type === "g79_modify_skin") {
-        setSkinBytes(decodeSkin(message.payload));
+        const error = gatewayErrorMessage(message.payload);
+        if (error) showError(new Error(error), "无法修改基岩版皮肤。");
+        else setSkinBytes(decodeSkin(message.payload));
       } else if (message.type === "realm_mod_download") {
         const result = recordPayload(message.payload);
         modDismissedRef.current = false;
@@ -416,14 +477,14 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
         } else {
           showError(new Error(String(done.message ?? "模组下载失败")), "模组下载失败");
         }
-      } else if (!realms && message.type === "g79_launch_game_done" && (String(message.payload) === id || String(message.payload) === `${id}:DomainGame`)) {
+      } else if (message.type === "g79_launch_game_done" && (String(message.payload) === id || String(message.payload) === `${id}:DomainGame`)) {
         setLaunching(false);
-      } else if (!realms && message.type === "g79_join_game_done" && String(message.payload) === id) {
+      } else if (message.type === "g79_join_game_done" && String(message.payload) === id) {
         setJoining(false);
       }
     }
     handledMessageRef.current = messages.at(-1) ?? null;
-  }, [id, messages, realms, searchParams, showError]);
+  }, [id, messages, realms, searchParams, showError, userId]);
 
   const submitRentalPassword = async () => {
     if (!rentalPassword.trim()) {
@@ -441,19 +502,31 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
   };
 
   const setServerNickname = async () => {
+    const nextNickname = nicknameDraft.trim();
+    if (!userId || !nextNickname) {
+      setNicknameError(userId ? "请输入角色名称。" : "请先选择账号。");
+      return;
+    }
+    setNicknameError("");
+    setNicknameSaving(true);
+    const identify = crypto.randomUUID();
+    nicknameRequestRef.current = { userId, nickname: nextNickname, identify };
     try {
-      await send("g79_set_nickname", { id: userId, new: nickname });
+      await send("g79_set_nickname", { id: userId, new: nextNickname }, identify);
     } catch (error) {
+      nicknameRequestRef.current = null;
+      setNicknameSaving(false);
       showError(error, "无法更新昵称。");
     }
   };
 
-	const sendLaunch = async (interceptor: boolean) => {
-		if (!realms) interceptor ? setJoining(true) : setLaunching(true);
+	const sendLaunch = async (interceptor: boolean, endpoint = { ...address, userId }, roleName = nickname) => {
+		interceptor ? setJoining(true) : setLaunching(true);
 		try {
-			if (!address.host.trim() || !Number.isInteger(address.port) || address.port <= 0 || address.port > 65535) {
+			if (!endpoint.host.trim() || !Number.isInteger(endpoint.port) || endpoint.port <= 0 || endpoint.port > 65535) {
 				throw new Error("服务器尚未提供有效的连接地址，请稍后重试。");
 			}
+      if (!endpoint.userId || !roleName.trim()) throw new Error("请选择账号并设置角色名称。");
       const gatewaySettings = await loadGatewaySettings();
       const pePath = gatewaySettings.peLaunchPath;
       const hasCustomPath = pePath.trim().length > 0;
@@ -461,19 +534,19 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
       const payload: Record<string, unknown> = {
         game_name: name,
         game_id: id,
-        role_name: nickname,
-        user_id: userId,
+        role_name: roleName,
+        user_id: endpoint.userId,
         ...(interceptor ? {} : { client_type: 2, launch_type: hasCustomPath ? 0 : 1, ...(hasCustomPath ? { launch_path: pePath } : {}) }),
         game_type: realms || domainRealm ? 8 : 2,
         ...(domainRealm ? { is_domain_game: true } : {}),
-        server_ip: address.host,
-        server_port: address.port,
+        server_ip: endpoint.host,
+        server_port: endpoint.port,
         skin_path: "",
         ...(itemIds.length > 0 ? { item_ids: itemIds } : {}),
       };
       const doLaunch = () => {
         void send(interceptor ? "g79_join_game" : "g79_launch_game", payload).catch((error) => {
-          if (!realms) interceptor ? setJoining(false) : setLaunching(false);
+          interceptor ? setJoining(false) : setLaunching(false);
           showError(error, interceptor ? "无法启动代理通道。" : "无法启动游戏。");
         });
       };
@@ -484,9 +557,32 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
       }
       doLaunch();
     } catch (error) {
-      if (!realms) interceptor ? setJoining(false) : setLaunching(false);
+      interceptor ? setJoining(false) : setLaunching(false);
       pendingLaunchRef.current = null;
       showError(error, interceptor ? "无法启动代理通道。" : "无法启动游戏。");
+    }
+  };
+
+  const prepareLaunch = async (interceptor: boolean) => {
+    if (!realms) {
+      await sendLaunch(interceptor);
+      return;
+    }
+    if (requiresPassword && !rentalPassword.trim()) {
+      setPasswordError("请输入服务器密码。");
+      return;
+    }
+    setPasswordError("");
+    interceptor ? setJoining(true) : setLaunching(true);
+    const identify = crypto.randomUUID();
+    pendingAddressLaunchRef.current = { interceptor, identify };
+    try {
+      await send("g79_rental_game_address", { game: id, password: rentalPassword }, identify);
+    } catch (error) {
+      pendingAddressLaunchRef.current = null;
+      setLaunching(false);
+      setJoining(false);
+      showError(error, "无法验证租赁服密码。");
     }
   };
 
@@ -519,67 +615,86 @@ export function GameLaunchPage({ kind }: { kind: LaunchKind }) {
     reader.readAsDataURL(blob);
   }, [send]);
 
+  const openRoleSettings = () => {
+    setNicknameDraft(nickname);
+    setNicknameError("");
+    setRoleSettingsOpen(true);
+  };
+
+  const selectAccount = (account: Account) => {
+    if (accountId(account) === userId) return;
+    pendingAddressLaunchRef.current = null;
+    nicknameLoadRef.current = null;
+    setLaunching(false);
+    setJoining(false);
+    setSelectedAccount(account);
+  };
+
   return (
-    <div className="game-launch-page">
-      <header className="game-launch-heading">
-        <button type="button" aria-label="返回" onClick={() => navigate(-1)}><BackIcon /></button>
-        <div><h1>{name}</h1><p>服务器 ID：{id}</p></div>
-      </header>
-      <div className="game-launch-grid">
-        <section className="game-skin-preview" aria-label="角色皮肤预览">
-          <SkinPreview skinBytes={skinBytes} fallbackSkinUrl={undefined} />
-          <button className="game-skin-edit" type="button" aria-label="修改皮肤" onClick={() => setSkinPickerOpen(true)}><EditIcon /></button>
-        </section>
-        <div className="game-launch-panel">
-          <section className="game-launch-card game-launch-settings">
-            <header><h2>设置</h2><p>选择账号和角色，开始游戏。</p></header>
-            <AccountSelector accounts={accounts} selected={selectedAccount} onChange={setSelectedAccount} />
-            <div className="game-nickname-field">
-              <label htmlFor="game-nickname"><small>昵称</small><input id="game-nickname" type="text" value={nickname} onChange={(event) => setNickname(event.target.value)} /></label>
-              <div><button type="button" aria-label="生成随机昵称" onClick={() => setNickname(generateRandomNickname())}><ShuffleIcon /></button><button type="button" onClick={() => void setServerNickname()}>确认</button></div>
-            </div>
-          </section>
-          <section className="game-launch-card game-launch-actions">
-            <button className="primary" type="button" disabled={launching} onClick={() => void sendLaunch(false)}>{launching ? <span><Spinner />正在启动...</span> : "启动游戏"}</button>
-          </section>
-          <section className="game-launch-info"><dl><div><dt>地址：</dt><dd>{address.host}:{address.port}</dd></div><div><dt>服务器类型：</dt><dd>{domainRealm ? "领域" : (realms ? "租赁服" : "网络游戏")}</dd></div></dl></section>
-        </div>
+    <div className="server-detail neo-bedrock-detail">
+      <div className="server-detail-header">
+        <button className="server-detail-back" type="button" aria-label="返回" onClick={() => navigate(-1)}><BackIcon /></button>
+        <div className="server-detail-title">{name}</div>
       </div>
-      {skinPickerOpen ? <SkinPicker localSkins={localSkins} currentSkin={selectedSkin} onClose={() => setSkinPickerOpen(false)} onSelect={selectLocalSkin} /> : null}
-      {passwordPromptOpen ? (
-        <div className="java-join-backdrop" role="presentation">
-          <section className="java-join-modal" role="dialog" aria-modal="true" aria-labelledby="rental-password-title">
-            <header>
-              <h2 id="rental-password-title">服务器密码</h2>
-              <button type="button" aria-label="关闭" onClick={() => setPasswordPromptOpen(false)}>
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 6.41L17.59 5L12 10.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 19 19 20.41 17.59 13.41 12z" fill="currentColor" /></svg>
-              </button>
-            </header>
-            <form className="java-password-body" onSubmit={(event) => { event.preventDefault(); void submitRentalPassword(); }}>
-              <label htmlFor="rental-server-password">该租赁服需要密码</label>
-              <input id="rental-server-password" type="password" value={rentalPassword} onChange={(event) => setRentalPassword(event.target.value)} autoFocus autoComplete="off" placeholder="请输入服务器密码" />
-              {passwordError ? <p>{passwordError}</p> : null}
-              <button type="submit">确认</button>
+      {image ? <div className="server-detail-images">{failedImage === image ? <div className="detail-img-placeholder" /> : <img src={image} alt="服务器预览图片" onError={() => setFailedImage(image)} />}</div> : null}
+      {description ? <div className="server-detail-desc" dangerouslySetInnerHTML={{ __html: description }} /> : null}
+      {requiresPassword ? <div className="detail-password-group"><label htmlFor="bedrock-detail-password">服务器密码</label><input id="bedrock-detail-password" type="password" placeholder="输入服务器密码" autoComplete="off" value={rentalPassword} onChange={(event) => { setRentalPassword(event.target.value); setPasswordError(""); }} />{passwordError ? <div className="dialog-error" role="alert">{passwordError}</div> : null}</div> : null}
+      <div className="server-detail-section">
+        <div className="server-detail-section-title">账号</div>
+        <AccountSelector accounts={accounts} selected={selectedAccount} onChange={selectAccount} />
+      </div>
+      <div className="server-detail-section">
+        <div className="server-detail-section-title">角色列表</div>
+        <div className="server-detail-roles">
+          {nicknameLoading ? <div className="detail-no-roles">加载中...</div> : nickname ? (
+            <div className="role-row">
+              <div className="role-row-left"><div className="role-row-name">{nickname}</div></div>
+              <div className="role-row-actions"><button className={`role-white-btn${launching ? " btn-loading" : ""}`} type="button" disabled={launching || !userId} onClick={() => void prepareLaunch(false)}>白端</button></div>
+            </div>
+          ) : <div className="detail-no-roles">{selectedAccount ? "暂无角色，请添加" : "请选择已登录的游戏账号"}</div>}
+        </div>
+        <button className="detail-add-role-btn" type="button" disabled={!userId || nicknameLoading} style={{ marginTop: 8 }} onClick={openRoleSettings}>{nickname ? "角色设置" : "+ 添加角色"}</button>
+      </div>
+      {roleSettingsOpen ? createPortal(
+        <div className="dialog-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !nicknameSaving) setRoleSettingsOpen(false); }}>
+          <section className="dialog-box neo-bedrock-role-dialog" role="dialog" aria-modal="true" aria-labelledby="bedrock-role-title">
+            <header className="dialog-header"><h3 id="bedrock-role-title">{nickname ? "角色设置" : "添加角色"}</h3><button className="dialog-close" type="button" aria-label="关闭" disabled={nicknameSaving} onClick={() => setRoleSettingsOpen(false)}>&times;</button></header>
+            <form onSubmit={(event) => { event.preventDefault(); void setServerNickname(); }}>
+              <div className="dialog-body">
+                <div className="form-group"><input autoFocus type="text" aria-label="角色名称" placeholder="输入角色名称" value={nicknameDraft} disabled={nicknameSaving} onChange={(event) => setNicknameDraft(event.target.value)} /></div>
+                <div className="role-random-actions"><button className="btn-random-name" type="button" disabled={nicknameSaving} onClick={() => setNicknameDraft(generateRandomNickname())}>随机名字</button></div>
+                {nicknameError ? <div className="dialog-error" role="alert">{nicknameError}</div> : null}
+                <div className="neo-bedrock-role-preview"><SkinPreview skinBytes={skinBytes} /></div>
+                <button className="btn-secondary" type="button" onClick={() => setSkinPickerOpen(true)}>修改皮肤</button>
+                <div className="neo-bedrock-role-endpoint">{address.host ? `${address.host}:${address.port}` : "正在加载服务器地址…"}</div>
+              </div>
+              <footer className="dialog-footer"><button className="btn-secondary" type="button" disabled={nicknameSaving} onClick={() => setRoleSettingsOpen(false)}>取消</button><button className="btn-accent" type="submit" disabled={nicknameSaving}>{nicknameSaving ? "保存中…" : nickname ? "保存" : "添加"}</button></footer>
             </form>
           </section>
-        </div>
+        </div>, document.body
       ) : null}
-      {modTask ? (
-        <div className="java-join-backdrop" role="presentation">
-          <section className="java-join-modal" role="dialog" aria-modal="true" aria-label="模组下载">
-            <header>
-              <h2>模组下载</h2>
-              <button type="button" aria-label="关闭" onClick={() => { setModTask(null); modDismissedRef.current = true; }}>
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="currentColor" /></svg>
-              </button>
-            </header>
-            <div className="java-password-body realm-mod-body">
-              <p className="realm-mod-line">{modTask.message}{modTask.modName ? `（${modTask.modName}）` : ""}<span>{modTask.done}/{modTask.total}</span></p>
-              <i className="realm-mod-bar"><b style={{ width: `${Math.min(Math.max((modTask.done / Math.max(modTask.total, 1)) * 100, 0), 100)}%` }} /></i>
-              <small className="realm-mod-hint">关闭弹窗不会取消下载，可在“游戏管理”页面取消</small>
-            </div>
+      {skinPickerOpen ? createPortal(<SkinPicker localSkins={localSkins} currentSkin={selectedSkin} onClose={() => setSkinPickerOpen(false)} onSelect={selectLocalSkin} />, document.body) : null}
+      {passwordPromptOpen ? createPortal(
+        <div className="dialog-overlay" role="presentation">
+          <section className="dialog-box" role="dialog" aria-modal="true" aria-labelledby="rental-password-title" style={{ width: 360 }}>
+            <header className="dialog-header"><h3 id="rental-password-title">服务器密码</h3><button className="dialog-close" type="button" aria-label="关闭" onClick={() => setPasswordPromptOpen(false)}>&times;</button></header>
+            <form onSubmit={(event) => { event.preventDefault(); void submitRentalPassword(); }}>
+              <div className="dialog-body">
+                <div className="form-group"><input id="rental-server-password" aria-label="服务器密码" type="password" value={rentalPassword} onChange={(event) => setRentalPassword(event.target.value)} autoFocus autoComplete="off" placeholder="请输入服务器密码" /></div>
+                {passwordError ? <div className="dialog-error" role="alert">{passwordError}</div> : null}
+              </div>
+              <footer className="dialog-footer"><button className="btn-secondary" type="button" onClick={() => setPasswordPromptOpen(false)}>取消</button><button className="btn-accent" type="submit">确认</button></footer>
+            </form>
           </section>
-        </div>
+        </div>, document.body
+      ) : null}
+      {modTask ? createPortal(
+        <div className="dialog-overlay" role="presentation">
+          <section className="dialog-box" role="dialog" aria-modal="true" aria-label="模组下载" style={{ width: 400 }}>
+            <header className="dialog-header"><h3>模组下载</h3><button className="dialog-close" type="button" aria-label="关闭" onClick={() => { setModTask(null); modDismissedRef.current = true; }}>&times;</button></header>
+            <div className="dialog-body realm-mod-body"><p className="realm-mod-line">{modTask.message}{modTask.modName ? `（${modTask.modName}）` : ""}<span>{modTask.done}/{modTask.total}</span></p><i className="realm-mod-bar"><b style={{ width: `${Math.min(Math.max((modTask.done / Math.max(modTask.total, 1)) * 100, 0), 100)}%` }} /></i><small className="realm-mod-hint">关闭弹窗不会取消下载，可在“游戏管理”页面取消</small></div>
+          </section>
+        </div>, document.body
       ) : null}
     </div>
   );

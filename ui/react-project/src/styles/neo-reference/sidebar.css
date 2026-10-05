@@ -1,0 +1,44 @@
+.sidebar {
+  width: 200px; flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 12px 8px; gap: 2px; overflow-y: auto;
+  position: relative;
+  animation: sidebarSlideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+[data-backdrop="mica"] .sidebar {
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  backdrop-filter: blur(var(--glass-blur)); -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-right-color: color-mix(in srgb, var(--border) 30%, transparent);
+}
+[data-custom-bg]:not([data-backdrop]) .sidebar,
+[data-custom-bg][data-backdrop="none"] .sidebar {
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border-right-color: color-mix(in srgb, var(--border) 50%, transparent);
+}
+@keyframes sidebarSlideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+
+.nav-indicator {
+  position: absolute; left: 3px; width: 3px; border-radius: 2px;
+  background: var(--accent);
+  transition: top 0.25s cubic-bezier(0.4, 0, 0.2, 1), height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none; z-index: 1;
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px; border-radius: 6px;
+  font-size: 13px; font-weight: 500; color: var(--text-secondary);
+  cursor: pointer; border: none; background: transparent;
+  width: 100%; text-align: left; user-select: none;
+  transition: background var(--transition), color var(--transition), transform 0.2s ease;
+}
+.nav-item:hover { background: var(--hover-bg); color: var(--text); transform: translateX(4px); }
+.nav-item.active { background: rgba(0, 120, 212, 0.12); color: var(--accent); font-weight: 600; }
+.nav-item.active:hover { background: rgba(0, 120, 212, 0.18); }
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.nav-icon svg { width: 16px; height: 16px; }
+.nav-divider { height: 1px; background: var(--border); margin: 8px 4px; }
+.nav-item-enter { opacity: 0; transform: translateY(8px); animation: navItemFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+@keyframes navItemFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }

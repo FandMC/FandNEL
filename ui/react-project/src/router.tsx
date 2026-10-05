@@ -11,8 +11,6 @@ import {
 } from "./pages/PublicPages";
 import {
   BedrockLaunchPage,
-  BedrockRealmLaunchPage,
-  BedrockRealmsPage,
   BedrockRentalLaunchPage,
   BedrockRentalsPage,
   BedrockServersPage,
@@ -22,14 +20,14 @@ import {
   ServerDetailsPage,
   ServersPage,
 } from "./pages/UserCenterPages";
-import { DashboardPage } from "./pages/user-center/DashboardPage";
+import { AccountsPage, DashboardPage } from "./pages/user-center/DashboardPage";
 import { JavaSkinsPage } from "./pages/user-center/JavaSkinsPage";
 import {
   InterceptorConfigPage,
   InterceptorConfigurationLayout,
   InterceptorPlaceholderPage,
 } from "./pages/user-center/InterceptorConfiguration";
-import { LaunchersPage, ModsPage } from "./pages/user-center/ManagementPages";
+import { LaunchersPage } from "./pages/user-center/ManagementPages";
 
 export function AppRouter() {
   return (
@@ -40,14 +38,13 @@ export function AppRouter() {
           <Route path="gateway" element={<GatewayPage />} />
           <Route path="user-center" element={<RequireUserCenter><UserCenterLayout /></RequireUserCenter>}>
             <Route index element={<DashboardPage />} />
+            <Route path="accounts" element={<AccountsPage />} />
             <Route path="servers" element={<ServersPage />} />
             <Route path="servers/details" element={<ServerDetailsPage />} />
             <Route path="rentals" element={<RentalsPage />} />
             <Route path="rentals/details" element={<RentalDetailsPage />} />
             <Route path="rentals-for-bedrock" element={<BedrockRentalsPage />} />
             <Route path="rentals-for-bedrock/launch" element={<BedrockRentalLaunchPage />} />
-            <Route path="bedrock-realms" element={<BedrockRealmsPage />} />
-            <Route path="bedrock-realms/launch" element={<BedrockRealmLaunchPage />} />
             <Route path="bedrock" element={<BedrockServersPage />} />
             <Route path="bedrock/launch" element={<BedrockLaunchPage />} />
             <Route path="launchers" element={<LaunchersPage />} />
@@ -58,7 +55,6 @@ export function AppRouter() {
               <Route path="packet-monitor" element={<InterceptorPlaceholderPage section="数据包监控" />} />
             </Route>
             <Route path="java-skins" element={<JavaSkinsPage />} />
-            <Route path="mods" element={<ModsPage />} />
             <Route path="settings" element={<GatewaySettingsPage />} />
           </Route>
 

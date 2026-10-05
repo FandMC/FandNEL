@@ -105,17 +105,22 @@ export function GatewayPage() {
 
   if (initializing || autoAttempting) return <LoadingState />;
   return (
-    <main className="gateway-screen">
-      <form className="gateway-form" onSubmit={connect}>
-        <h1>连接网关</h1>
-        <input value={endpoint} onChange={(event) => setEndpoint(event.target.value)} placeholder="ws://localhost:19541/gateway" />
+    <main className="content gateway-content">
+      <div className="page-content login-page gateway-page">
+        <form className="card gateway-form" onSubmit={connect}>
+        <h2>连接网关</h2>
+        <p className="subtitle">连接本地网关后进入用户中心</p>
+        <div className="form-group">
+          <input value={endpoint} onChange={(event) => setEndpoint(event.target.value)} placeholder="ws://localhost:19541/gateway" />
+        </div>
         {localError || gateway.error ? <Notice tone="error">{localError || gateway.error}</Notice> : null}
         <div className="gateway-actions">
-          <button type="button" disabled={gateway.status === "searching"} onClick={discover}>{gateway.status === "searching" ? "正在搜索…" : "自动搜索"}</button>
-          <button type="submit" disabled={gateway.status === "connecting"}>{gateway.status === "connecting" ? "正在连接…" : "连接"}</button>
+          <button className="btn-secondary" type="button" disabled={gateway.status === "searching"} onClick={discover}>{gateway.status === "searching" ? "正在搜索…" : "自动搜索"}</button>
+          <button className="btn-accent" type="submit" disabled={gateway.status === "connecting"}>{gateway.status === "connecting" ? "正在连接…" : "连接"}</button>
         </div>
-      </form>
-      <button className="gateway-download" type="button" onClick={() => navigate("/download")}>没有 WebSocket 地址？下载网关。</button>
+        </form>
+        <button className="gateway-download form-link" type="button" onClick={() => navigate("/download")}>没有 WebSocket 地址？下载网关。</button>
+      </div>
     </main>
   );
 }

@@ -1,0 +1,31 @@
+.page-account { width: 100%; max-width: 1180px; margin: 0 auto; }
+.workspace { display: flex; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+.app-body > .workspace { width: 100%; }
+.workspace > .content { min-width: 0; }
+.sidebar { align-self: stretch; position: relative; top: auto; height: auto; min-height: 0; width: 200px; }
+.account-table { display: block; grid-template-columns: none; padding: 0; }
+.account-table .account-row { width: 100%; }
+.account-table .cell-actions .btn-sm { width: auto; display: inline-flex; }
+.account-table .cell-actions { flex-direction: row; align-items: center; }
+.account-table .cell-actions .btn-sm { flex: 0 0 auto; width: auto !important; }
+.network-actions .network-search { box-sizing: border-box; height: auto; }
+.server-card { appearance: none; padding: 0; text-align: left; }
+.server-list-error, .bedrock-rental-loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 32px 20px; color: var(--text-secondary); font-size: 13px; }
+.bedrock-rental-empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+.page-account > h2 { margin-bottom: 20px; }
+.page-account .account-header h2 { margin-bottom: 4px; }
+.page-account .account-header .page-desc { margin: 0; }
+.account-row > .account-cell { min-width: 0; }
+.account-row .cell-id,
+.account-row .cell-type,
+.account-row .cell-status,
+.account-row .cell-platform,
+.account-row .cell-alias { min-width: 0; }
+.dialog-box .dialog-body input { box-sizing: border-box; }
+.gateway-content { align-items: center; justify-content: center; }
+.gateway-page { width: min(100%, 440px); overflow: visible; }
+.gateway-form { width: 100%; display: block; }
+.gateway-form .subtitle { margin-bottom: 22px; }
+.gateway-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.gateway-actions .btn-secondary, .gateway-actions .btn-accent { width: auto; height: auto; }
+.gateway-download { display: block; position: static; width: auto; margin: 14px auto 0; border: 0; background: transparent; cursor: pointer; white-space: nowrap; color: var(--text-secondary); font-size: 13px; font-weight: 500; }

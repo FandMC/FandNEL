@@ -1,0 +1,111 @@
+/* ── Login ── */
+.login-page {
+  text-align: center; width: 100%; max-width: 400px; padding: 40px;
+  opacity: 0; transform: translateY(16px);
+  animation: page-in 0.4s ease-out forwards;
+}
+@keyframes page-in { to { opacity: 1; transform: translateY(0); } }
+.login-page h2 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+.subtitle { font-size: 14px; color: var(--text-secondary); margin-bottom: 32px; }
+
+/* ── Splash ── */
+.splash-overlay {
+  position: fixed; inset: 0; z-index: 1000; background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+.splash-overlay.hide { opacity: 0; visibility: hidden; pointer-events: none; }
+.splash-content { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.splash-logo {
+  width: 80px; height: 80px; border-radius: 12px;
+  opacity: 0; transform: scale(0.7);
+  animation: splash-logo-in 0.6s 0.1s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+}
+@keyframes splash-logo-in { to { opacity: 1; transform: scale(1); } }
+.splash-title {
+  font-size: 32px; font-weight: 700; color: var(--text);
+  opacity: 0; transform: translateY(12px);
+  animation: splash-text-in 0.5s 0.35s ease-out forwards;
+}
+.splash-subtitle-text {
+  font-size: 14px; color: var(--text-muted);
+  opacity: 0; transform: translateY(10px);
+  animation: splash-text-in 0.5s 0.5s ease-out forwards;
+}
+@keyframes splash-text-in { to { opacity: 1; transform: translateY(0); } }
+.splash-spinner {
+  width: 28px; height: 28px; opacity: 0;
+  animation: spinner-fade-in 0.4s 0.7s ease-out forwards;
+}
+.splash-spinner::after {
+  content: ''; display: block; width: 100%; height: 100%;
+  border: 3px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+@keyframes spinner-fade-in { to { opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Overview ── */
+.overview-grid { display: flex; gap: 20px; }
+.card-announcement { flex: 1; min-width: 0; }
+.announcement-loading { font-size: 13px; color: var(--text-muted); }
+.announcement-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.announcement-date { font-size: 11px; color: var(--text-muted); margin-top: 8px; display: block; }
+.announcement-text { font-size: 13px; color: var(--text); line-height: 1.6; white-space: pre-wrap; }
+
+.card-userinfo {
+  flex: 1; min-width: 0; display: flex; flex-direction: row;
+  align-items: center; gap: 14px; padding: 16px 20px;
+}
+.userinfo-avatar { width: 48px; height: 48px; border-radius: 50%; overflow: hidden; flex-shrink: 0; background: var(--bg); }
+.userinfo-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.userinfo-detail { min-width: 0; }
+.userinfo-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.userinfo-id { font-size: 12px; color: var(--text-muted); }
+.userinfo-rank { margin-left: auto; flex-shrink: 0; font-size: 13px; font-weight: 500; color: var(--text-secondary); background: var(--bg); padding: 4px 12px; border-radius: 8px; white-space: nowrap; }
+
+.recent-play-section { margin-top: 20px; }
+.recent-play-title { font-size: 15px; font-weight: 600; color: var(--text); margin: 0 0 12px 0; }
+.recent-play-list { display: flex; flex-direction: column; gap: 8px; }
+.recent-play-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; background: var(--bg);
+  border-radius: 8px; border: 1px solid var(--border);
+}
+.recent-play-info { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.recent-play-name { font-size: 13px; font-weight: 500; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-play-type { font-size: 11px; padding: 2px 8px; border-radius: 6px; white-space: nowrap; font-weight: 500; }
+.recent-play-type.type-network { color: #4fc3f7; background: rgba(79, 195, 247, 0.12); }
+.recent-play-type.type-rental { color: #81c784; background: rgba(129, 199, 132, 0.12); }
+.recent-play-meta { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.recent-play-time { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.recent-play-join {
+  font-size: 12px; padding: 4px 14px; border: none; border-radius: 8px;
+  background: var(--accent); color: #fff; cursor: pointer; white-space: nowrap;
+}
+
+/* ── Membership ── */
+.card-membership { margin-top: 20px; padding: 16px 20px; }
+.membership-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.membership-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.membership-subtitle { margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+.membership-status { flex-shrink: 0; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.08); color: var(--text); }
+.membership-status.active, .membership-status.permanent, .membership-status.trial { color: #81c784; background: rgba(129, 199, 132, 0.12); }
+.membership-status.expired, .membership-status.none { color: #ff8a80; background: rgba(255, 138, 128, 0.12); }
+.membership-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+.membership-item { padding: 12px 14px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); }
+.membership-label { font-size: 12px; color: var(--text-muted); margin-bottom: 6px; }
+.membership-value { font-size: 14px; font-weight: 600; color: var(--text); }
+.membership-actions { display: flex; gap: 10px; }
+.membership-input {
+  flex: 1; min-width: 0; height: 38px; padding: 0 12px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--bg);
+  color: var(--text); outline: none;
+}
+.membership-input:focus { border-color: var(--accent); }
+.membership-btn {
+  height: 38px; padding: 0 16px; border: none; border-radius: 6px;
+  background: var(--accent); color: #fff; cursor: pointer; white-space: nowrap;
+}
+.membership-btn:hover { opacity: 0.9; }
+.membership-btn:disabled { opacity: 0.6; cursor: not-allowed; }

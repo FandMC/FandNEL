@@ -1,0 +1,425 @@
+/* Management and skin layouts adapted from NeoOpenNEL. */
+.neo-management-page,
+.neo-skins-page {
+  width: 100%;
+  max-width: none;
+  color: var(--text);
+}
+
+.neo-management-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.neo-management-header h1 {
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.neo-management-header p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.neo-management-actions,
+.neo-session-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.neo-management-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+
+.neo-management-button:hover {
+  background: var(--hover-bg);
+}
+
+.neo-management-button.danger {
+  border-color: #e74c3c33;
+  color: #e74c3c;
+}
+
+.neo-management-button.danger:hover {
+  background: #e74c3c0d;
+  border-color: #e74c3c66;
+}
+
+.neo-management-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.neo-management-button svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.neo-management-button:focus-visible,
+.neo-skin-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.neo-management-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.neo-management-empty > svg {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 12px;
+}
+
+.neo-management-empty h3 {
+  margin: 0 0 6px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.neo-management-empty p {
+  margin: 0 0 12px;
+  overflow-wrap: anywhere;
+}
+
+.neo-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.neo-session-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+  background: var(--surface);
+  transition: background 120ms;
+}
+
+.neo-session-card:hover {
+  background: var(--hover-bg);
+}
+
+.neo-session-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.neo-session-info h3 {
+  margin: 0 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.neo-session-meta {
+  margin: 0 0 2px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.neo-session-identifier {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.neo-session-status {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.neo-session-status.running {
+  color: #059669;
+}
+
+.neo-session-progress {
+  max-width: 448px;
+  margin-top: 10px;
+}
+
+.neo-session-progress p {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.neo-session-progress > i {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--border);
+}
+
+.neo-session-progress b {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 300ms ease-out;
+}
+
+.neo-skin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.neo-skin-card {
+  position: relative;
+  height: 260px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 150ms, box-shadow 150ms;
+}
+
+.neo-skin-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.neo-skin-image,
+.neo-skin-placeholder,
+.neo-skin-gradient {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.neo-skin-image {
+  object-fit: cover;
+}
+
+.neo-skin-placeholder {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.neo-skin-gradient {
+  background: linear-gradient(to bottom, transparent 35%, rgba(0, 0, 0, 0.8));
+}
+
+.neo-skin-body {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px;
+  color: #fff;
+}
+
+.neo-skin-name,
+.neo-skin-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.neo-skin-name {
+  font-size: 14px;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.neo-skin-summary,
+.neo-skin-likes {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+}
+
+.neo-skin-apply {
+  display: block;
+  margin-top: 3px;
+  padding: 6px 0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 120ms;
+}
+
+.neo-skin-card:hover .neo-skin-apply {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.neo-skin-list-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.neo-skin-modal {
+  width: 400px;
+  max-width: calc(100vw - 40px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.neo-skin-modal .legacy-modal-header {
+  margin: 0;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.neo-skin-modal .legacy-modal-header h2 {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.neo-skin-modal .legacy-modal-header button {
+  color: var(--text-muted);
+}
+
+.neo-skin-modal .skin-apply-body {
+  padding: 20px;
+}
+
+.neo-skin-modal .java-join-select > button {
+  border-color: var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.neo-skin-modal .java-join-select small,
+.neo-skin-modal .java-join-select strong {
+  color: inherit;
+}
+
+.neo-skin-modal .java-join-options {
+  border-color: var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.neo-skin-modal .java-join-options li button {
+  color: var(--text);
+}
+
+.neo-skin-modal .java-join-options li button:hover {
+  background: var(--hover-bg);
+}
+
+.neo-skin-modal .java-join-options li button.selected {
+  color: var(--accent);
+}
+
+.neo-skin-modal .skin-apply-actions {
+  padding: 0 20px 20px;
+}
+
+.neo-skin-modal .skin-apply-actions button {
+  min-height: 34px;
+  padding: 7px 14px;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+}
+
+.neo-skin-modal .operation-state {
+  padding: 40px 20px;
+  color: var(--text);
+}
+
+.neo-skin-modal .operation-state h3 {
+  color: var(--text);
+}
+
+.neo-skin-modal .operation-state p {
+  color: var(--text-secondary);
+}
+
+@media (max-width: 760px) {
+  .neo-management-header {
+    flex-wrap: wrap;
+  }
+
+  .neo-management-actions {
+    flex-wrap: wrap;
+  }
+
+  .neo-session-card {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .neo-session-actions {
+    flex-wrap: wrap;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neo-skin-card,
+  .neo-session-progress b {
+    transition: none;
+  }
+
+  .neo-skin-card:hover {
+    transform: none;
+  }
+}

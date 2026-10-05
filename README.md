@@ -5,7 +5,7 @@ FandNEL 是独立的 .NET 9 Windows 客户端，负责网易 Java 账号激活�
 ## 项目边界
 
 ```text
-src/FandNEL/             WPF 界面、账号持久化和 Gateway 编排
+src/FandNEL/             Photino/React 界面、账号持久化和 Gateway 编排
 src/FandNEL.Core/        Codexus Cipher 行为、渠道协议、网易 API、OTP 和 Codexus 远程认证
 src/FandNEL.Proxy/       无开发者 SDK 的 Minecraft 连接、协议状态机和可组合拦截链
 src/FandNEL.GameLauncher/资源下载、7z 安装、Java 参数和进程生命周期
@@ -22,6 +22,14 @@ dotnet restore "FandNEL.slnx"
 dotnet build "FandNEL.slnx" -c Debug
 dotnet run --project "src/FandNEL/FandNEL.csproj" -c Debug
 ```
+
+前端沿用 NeoOpenNEL 的主页、布局、组件样式及明暗主题，业务仍通过 FandNEL 的本地 WebSocket Gateway 和 `/api/settings` 执行。外观偏好独立保存在浏览器的 `fandnel:appearance` 中，不改变账号或游戏设置。左侧导航使用简体中文；账号渠道、在线状态和登录方式保留英文，其余固定文案使用简体中文。
+
+网络服与租赁服详情共用 NeoOpenNEL 原详情结构，仅映射 FandNEL 的数据与请求；不添加另一套详情布局。Mods 和 Realms 页面及导航已移除。桌面窗口不使用 Windows 默认标题栏，React 绘制标题栏并通过 Photino 消息桥执行拖动、最小化、最大化/还原和关闭；普通浏览器不显示不可用的窗口控制按钮。
+
+有密码的 Java 租赁服在 `rental_games_detail` 未提供密码时只返回公开详情。角色启动前必须携带当前密码重新校验并获取服务器地址；不得使用未经密码验证的地址启动。
+
+修改界面后，在 `ui/react-project` 执行 `npm run build`，将 `dist` 的全部内容同步到 `src/FandNEL/wwwroot`，并删除目标目录中已不在本次构建里的旧 JS/CSS 文件。最后执行后端构建，保证内置界面和前端源码一致。`src/styles/neo-base.css` 保存 Neo 的基础视觉变量，公共控件与各业务页面的样式分别放在同目录，所有样式由 `neo.css` 汇总。
 
 Proxy 版本状态机覆盖 1.7.6、1.8.x、1.12.2、1.18、1.20、1.20.6、1.21、1.21.8 和 1.21.10。每个会话都有独立 `PacketRegistry`，同一包 ID 可以注册多个按优先级执行的处理器；`PacketContext.ReplaceRange` 会保留未改字段和尾部载荷。
 

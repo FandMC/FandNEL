@@ -1,0 +1,361 @@
+/* Existing FandNEL controls share the NeoOpenNEL theme variables. */
+:root {
+  --primary: var(--text);
+  --muted: var(--text-secondary);
+  --wash: var(--bg);
+  --blue: var(--accent);
+  --blue-hover: var(--accent-hover);
+  --blue-soft: color-mix(in srgb, var(--accent) 10%, transparent);
+  --teal: #16857d;
+  --red: #c4324a;
+  --yellow: #9a6700;
+}
+
+[data-theme="dark"] {
+  --teal: #81c784;
+  --red: #f87171;
+  --yellow: #fbbf24;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  user-select: text;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+.button {
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  min-height: 34px;
+  padding: 7px 16px;
+}
+
+.button-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.button-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.button-secondary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.button-secondary:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: var(--text-muted);
+}
+
+.button-quiet,
+.icon-button {
+  color: var(--text-secondary);
+}
+
+.button-quiet:hover:not(:disabled),
+.icon-button:hover,
+.back-link:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.button-danger {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+  color: var(--red);
+}
+
+.button-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+  border-color: var(--red);
+}
+
+.icon-button {
+  border-radius: 6px;
+  flex-basis: 30px;
+  height: 30px;
+  width: 30px;
+}
+
+.field {
+  gap: 6px;
+}
+
+.field > span {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.field-control,
+.field > select {
+  background: var(--surface);
+  border-color: var(--border);
+  border-radius: 6px;
+  min-height: 38px;
+  padding: 0 12px;
+}
+
+.field-control svg {
+  color: var(--text-muted);
+}
+
+.field-control:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+select option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.notice,
+.status,
+.tag-list span {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.notice-success,
+.status-success {
+  background: color-mix(in srgb, var(--teal) 9%, transparent);
+  border-color: color-mix(in srgb, var(--teal) 25%, transparent);
+  color: var(--teal);
+}
+
+.notice-error {
+  background: color-mix(in srgb, var(--red) 9%, transparent);
+  border-color: color-mix(in srgb, var(--red) 25%, transparent);
+  color: var(--red);
+}
+
+.status-warning {
+  background: color-mix(in srgb, var(--yellow) 9%, transparent);
+  border-color: color-mix(in srgb, var(--yellow) 25%, transparent);
+  color: var(--yellow);
+}
+
+.status-neutral,
+.tag-list span {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+
+.catalog-panel,
+.section-block,
+.resource-card,
+.product-card,
+.order-sheet,
+.server-summary,
+.detail-meta,
+.prose,
+.settings-form,
+.security-section,
+.launch-form,
+.danger-zone {
+  background: var(--surface);
+  border-color: var(--border);
+  border-radius: var(--radius);
+}
+
+.resource-card {
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.resource-card:hover {
+  border-color: var(--text-muted);
+}
+
+.resource-copy h2 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.resource-copy p,
+.product-card p {
+  font-size: 13px;
+}
+
+.page-heading h1 {
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.page-heading p,
+.section-heading p {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.page-heading {
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.loading-state,
+.empty-state {
+  color: var(--text-muted);
+  min-height: 180px;
+  padding: 32px 20px;
+}
+
+.loading-state > svg {
+  color: var(--accent);
+}
+
+.empty-state h2 {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  margin: 12px 0 6px;
+}
+
+.empty-state p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.modal-backdrop[role="presentation"],
+.legacy-modal-backdrop,
+.skin-picker-backdrop {
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 5000;
+}
+
+.modal-backdrop[role="presentation"] {
+  position: fixed;
+}
+
+.global-captcha-backdrop {
+  z-index: 5100;
+}
+
+.legacy-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+}
+
+.legacy-modal-header {
+  border-color: var(--border);
+  padding: 16px 20px;
+}
+
+.legacy-modal-header h2 {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.legacy-modal-header button,
+.modal-close {
+  border-radius: 6px;
+  color: var(--text-muted);
+}
+
+.legacy-modal-header button:hover,
+.modal-close:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.modal h2 {
+  font-size: 16px;
+}
+
+.modal > header {
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.toast,
+.notification-panel,
+.recipient-results,
+.game-account-menu {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+}
+
+.uc-table {
+  color: var(--text);
+}
+
+.uc-table th {
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.uc-table th,
+.uc-table td {
+  border-color: var(--border);
+}
+
+.uc-table tbody tr:hover {
+  background: var(--hover-bg);
+}
+
+.skin-picker {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button,
+  .field-control {
+    transition: none;
+  }
+}

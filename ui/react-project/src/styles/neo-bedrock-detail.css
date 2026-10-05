@@ -1,0 +1,42 @@
+/* 基岩版保留的昵称、皮肤与代理操作收纳在 NeoOpenNEL 原生弹窗内。 */
+.neo-bedrock-role-dialog {
+  width: 400px;
+}
+
+.neo-bedrock-role-preview {
+  height: 200px;
+  margin: 16px 0 12px;
+}
+
+.neo-bedrock-role-preview .game-skin-canvas canvas {
+  filter: none;
+}
+
+.neo-bedrock-role-endpoint {
+  margin-top: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.neo-bedrock-skin-overlay {
+  z-index: 10010;
+}
+
+.neo-bedrock-skin-dialog {
+  width: 600px;
+}
+
+.neo-bedrock-skin-dialog .skin-picker-grid {
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  margin: 0;
+  padding: 0;
+}
+
+.neo-bedrock-skin-dialog .skin-card-preview {
+  background: var(--bg);
+}
+
+.neo-bedrock-skin-dialog .skin-card-overlay {
+  color: #fff;
+}

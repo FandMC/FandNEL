@@ -1,0 +1,22 @@
+.titlebar {
+  display: flex; align-items: center; height: 44px;
+  background: var(--bg); flex-shrink: 0;
+}
+[data-backdrop="mica"] .titlebar { background: color-mix(in srgb, var(--bg) 55%, transparent); }
+.titlebar-drag { flex: 1; height: 100%; display: flex; align-items: center; padding-left: 16px; cursor: default; }
+.titlebar-left { display: flex; align-items: center; gap: 10px; pointer-events: none; }
+.titlebar-logo { width: 22px; height: 22px; border-radius: 6px; }
+.titlebar-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.titlebar-controls { display: flex; align-items: center; gap: 8px; padding-right: 14px; }
+.tb-btn {
+  width: 14px; height: 14px; border: none; border-radius: 50%;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  padding: 0; transition: filter 0.15s;
+}
+.tb-icon { opacity: 0; transition: opacity 0.15s; pointer-events: none; }
+.titlebar-controls:hover .tb-icon { opacity: 1; }
+.tb-close { background: #FF5F57; color: #4a0002; }
+.tb-minimize { background: #FFBD2E; color: #6b4e00; }
+.tb-maximize { background: #28C840; color: #0a5417; }
+.tb-btn:hover { filter: brightness(0.88); }
+.tb-btn:active { filter: brightness(0.75); }

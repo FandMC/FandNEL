@@ -1,17 +1,4 @@
-import {
-  Laptop,
-  LoaderCircle,
-  Monitor,
-  Pencil,
-  Plus,
-  Power,
-  Settings,
-  Smartphone,
-  Trash2,
-  X,
-} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useGateway, useToasts } from "../../context/AppContext";
 import { consumeGatewayMessages, parseGatewayPayload, useGatewayList } from "./gatewayData";
 import type { GatewayMessage } from "../../types";
@@ -30,22 +17,22 @@ interface LoginResponse {
   message: string;
 }
 
-type AccountTab = "cookie" | "email" | "sms" | "4399pc";
-type AccountFilter = "all" | "online" | "offline";
+type AccountTab = "cookie" | "email" | "4399pc";
 
 const accountTabs: Array<{ label: string; value: AccountTab }> = [
+  { label: "4399", value: "4399pc" },
+  { label: "网易邮箱", value: "email" },
   { label: "Cookie", value: "cookie" },
-  { label: "Email", value: "email" },
-  { label: "SMS", value: "sms" },
-  { label: "Pc4399", value: "4399pc" },
 ];
 
-export function DashboardPage() {
+export function AccountsPage() {
+  return <DashboardPage accountsOnly />;
+}
+
+export function DashboardPage({ accountsOnly = false }: { accountsOnly?: boolean }) {
   const { gateway, items: accountItems, loading } = useGatewayList<GatewayAccount>("get_accounts");
   const { notify } = useToasts();
-  const navigate = useNavigate();
-  const [loginOpen, setLoginOpen] = useState(false);
-  const [accountFilter, setAccountFilter] = useState<AccountFilter>("all");
+  const [loginPlatform, setLoginPlatform] = useState<"pc" | "pe" | null>(null);
   const accounts = [...new Map(accountItems.map((account) => [account.id, account])).values()];
 
   const toggleAccount = async (account: GatewayAccount) => {
@@ -61,75 +48,49 @@ export function DashboardPage() {
     });
   };
 
-  const filteredAccounts = accounts.filter((account) => {
-    if (accountFilter === "online") return account.authorized;
-    if (accountFilter === "offline") return !account.authorized;
-    return true;
-  });
+  const randomLogin = async () => {
+    const account = accounts[0];
+    if (!account) {
+      notify("暂无可登录账号", "info");
+      return;
+    }
+    await toggleAccount(account);
+  };
 
   return (
-    <div className="workspace-page dashboard-page dashboard-v253">
-      <section className="dashboard-v253-header">
+    <div className={`page-account${accountsOnly ? " page-account-only" : ""}`}>
+      <header className="account-header">
         <div>
-          <h1>概览</h1>
-          <p>欢迎回来!</p>
+          <h2>账号管理</h2>
+          <p className="page-desc">管理您的游戏账号</p>
         </div>
-        <div className="dashboard-v253-header-actions">
-          <button type="button" onClick={() => navigate("/user-center/settings")}><Settings />设置</button>
+        <div className="account-actions">
+          <button className="btn-secondary" type="button" onClick={() => void randomLogin()}>随机登录</button>
+          <button className="btn-accent" type="button" onClick={() => setLoginPlatform("pc")}>添加账号(PC)</button>
+          <button className="btn-accent" type="button" onClick={() => setLoginPlatform("pe")}>添加账号(PE)</button>
         </div>
-      </section>
+      </header>
 
-      <section className="dashboard-main-grid">
-        <div className="dashboard-accounts-column">
-          <header className="dashboard-accounts-heading">
-            <div>
-              <h2>游戏账号</h2>
-              <p>管理已添加的游戏账号</p>
-            </div>
-            <button type="button" onClick={() => setLoginOpen(true)}><Plus />添加账号</button>
-          </header>
-
-          <div className="dashboard-account-card">
-            <header>
-              <strong>账号（{accounts.length}）</strong>
-              <div className="dashboard-account-filters">
-                {(["all", "online", "offline"] as AccountFilter[]).map((filter) => (
-                  <button className={accountFilter === filter ? "active" : ""} type="button" key={filter} onClick={() => setAccountFilter(filter)}>{filter}</button>
-                ))}
-              </div>
-            </header>
-            {loading ? <div className="dashboard-account-loading" /> : filteredAccounts.length ? (
-              <div className="dashboard-account-list">
-                {filteredAccounts.map((account, index) => (
-                  <AccountRow
-                    account={account}
-                    key={`${account.id}-${account.platform}-${index}`}
-                    onToggle={() => toggleAccount(account)}
-                  />
-                ))}
-              </div>
-            ) : <div className="dashboard-account-empty">此分类下暂无账号。</div>}
+      {loading ? <div className="account-loading">加载中...</div> : accounts.length ? (
+        <div className="account-table">
+          <div className="account-row account-header-row" aria-hidden="true">
+            <div className="account-cell cell-id">账号ID</div><div className="account-cell cell-status">状态</div><div className="account-cell cell-type">登录方式</div><div className="account-cell cell-platform">平台</div><div className="account-cell cell-alias">备注</div><div className="account-cell cell-actions">操作</div>
           </div>
+          {accounts.map((account, index) => (
+            <AccountRow account={account} key={`${account.id}-${account.platform}-${index}`} onToggle={() => toggleAccount(account)} />
+          ))}
         </div>
+      ) : <div className="account-empty"><div className="account-empty-title">暂无账号</div><div className="account-empty-desc">点击上方按钮添加您的第一个账号</div></div>}
 
-      </section>
-
-      {loginOpen ? <AccountLoginModal onClose={() => setLoginOpen(false)} /> : null}
+      {loginPlatform ? <AccountLoginModal platform={loginPlatform} onClose={() => setLoginPlatform(null)} /> : null}
     </div>
   );
-}
-
-function PlatformIcon({ platform }: { platform: number }) {
-  if (platform === 1) return <Smartphone />;
-  if (platform === 2) return <Laptop />;
-  return <Monitor />;
 }
 
 function AccountRow({ account, onToggle }: { account: GatewayAccount; onToggle(): Promise<void> }) {
   const gateway = useGateway();
   const { notify } = useToasts();
   const [alias, setAlias] = useState(account.alias || "");
-  const [editing, setEditing] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const connectingRef = useRef(false);
   const previousMessage = useRef<GatewayMessage | undefined>(gateway.messages.at(-1));
@@ -174,55 +135,38 @@ function AccountRow({ account, onToggle }: { account: GatewayAccount; onToggle()
 
   const saveAlias = () => {
     void gateway.send("update_user_alias", { id: account.id, platform: account.platform, alias });
-    setEditing(false);
   };
 
   return (
-    <div className="dashboard-account-row" role="button" tabIndex={0} onClick={() => void toggle()} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") void toggle(); }}>
-      <div className="dashboard-account-identity">
-        <span className="dashboard-platform-icon"><PlatformIcon platform={account.platform} /></span>
-        <div>
-          <div className="dashboard-account-name">
-            {editing ? <input autoFocus type="text" value={alias} onClick={(event) => event.stopPropagation()} onChange={(event) => setAlias(event.target.value)} onBlur={saveAlias} onKeyDown={(event) => { if (event.key === "Enter") saveAlias(); }} /> : <strong title={alias || "未设置别名"}>{alias || account.id}</strong>}
-            {!editing ? <button type="button" onClick={(event) => { event.stopPropagation(); setEditing(true); }} aria-label="编辑别名" title="编辑别名"><Pencil /></button> : null}
-          </div>
-          <small>{account.channel} &bull; {account.id} &bull; {account.type}</small>
-        </div>
+    <div className="account-row">
+      <div className="account-cell cell-id">
+        <span title={account.id}>{account.id}</span>
       </div>
-      <div className="dashboard-account-actions">
-        <span className={account.authorized ? "online" : "offline"}>{account.authorized ? "Online" : "Offline"}</span>
-        <div>
-          <button type="button" disabled={connecting} onClick={(event) => { event.stopPropagation(); void toggle(); }} aria-label={account.authorized ? "断开连接" : "连接"} title={account.authorized ? "断开连接" : "连接"}>{connecting ? <LoaderCircle className="spin" /> : <Power />}</button>
-          <button type="button" onClick={(event) => { event.stopPropagation(); if (window.confirm("确定要删除此账号吗？")) void gateway.send("delete_user", { id: account.id, platform: account.platform }); }} aria-label="删除账号" title="删除账号"><Trash2 /></button>
-        </div>
+      <div className="account-cell cell-status"><span className={`status-badge ${account.authorized ? "status-online" : "status-offline"}`}>{account.authorized ? "Online" : "Offline"}</span></div>
+      <div className="account-cell cell-type">{account.type || account.channel}</div>
+      <div className="account-cell cell-platform"><span className={`platform-badge ${account.platform === 1 ? "platform-pe" : "platform-pc"}`}>{account.platform === 1 ? "PE" : "PC"}</span></div>
+      <div className="account-cell cell-alias"><input className="alias-input" type="text" value={alias} onChange={(event) => setAlias(event.target.value)} onBlur={saveAlias} placeholder="添加备注..." aria-label={`账号 ${account.id} 的备注`} /></div>
+      <div className="account-cell cell-actions">
+        <button className={account.authorized ? "btn-secondary btn-sm" : "btn-accent btn-sm"} type="button" disabled={connecting} onClick={() => void toggle()}>{account.authorized ? "注销" : "登录"}</button>
+        <button className="btn-danger btn-sm" type="button" onClick={() => { if (window.confirm("确定要删除此账号吗？")) void gateway.send("delete_user", { id: account.id, platform: account.platform }); }}>删除</button>
       </div>
     </div>
   );
 }
 
-export function AccountLoginModal({ onClose }: { onClose(): void }) {
+export function AccountLoginModal({ platform = "pc", onClose }: { platform?: "pc" | "pe"; onClose(): void }) {
   const gateway = useGateway();
-  const [tab, setTab] = useState<AccountTab>(() => accountTabs[Number(sessionStorage.getItem("X-ACTIVE-TAB") || 0)]?.value || "cookie");
+  const [tab, setTab] = useState<AccountTab>(() => accountTabs[Number(sessionStorage.getItem("X-ACTIVE-TAB") || 0)]?.value || "4399pc");
   const [cookie, setCookie] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
   const [pcUser, setPcUser] = useState("");
   const [pcPassword, setPcPassword] = useState("");
   const [captchaId, setCaptchaId] = useState<string | null>(null);
   const [captcha, setCaptcha] = useState("");
-  const [sendingCode, setSendingCode] = useState(false);
-  const [countdown, setCountdown] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const previousMessage = useRef<GatewayMessage | undefined>(gateway.messages.at(-1));
-
-  useEffect(() => {
-    if (countdown <= 0) return;
-    const timer = window.setTimeout(() => setCountdown((value) => value - 1), 1_000);
-    return () => window.clearTimeout(timer);
-  }, [countdown]);
 
   useEffect(() => {
     const pending = consumeGatewayMessages(gateway.messages, previousMessage);
@@ -236,12 +180,6 @@ export function AccountLoginModal({ onClose }: { onClose(): void }) {
       if (message.type !== "login") continue;
       const response = parseGatewayPayload<LoginResponse>(message.payload);
       setBusy(false);
-      setSendingCode(false);
-      if (response.code === 36) {
-        setCountdown(60);
-        setError("");
-        continue;
-      }
       if (response.code === 1002) {
         const verification = parseGatewayPayload<{ reason: string; verify_url: string }>(response.message);
         setError(verification.reason);
@@ -262,7 +200,7 @@ export function AccountLoginModal({ onClose }: { onClose(): void }) {
     }
   }, [gateway.messages, onClose, tab]);
 
-  const sendNeteaseLogin = async (type: "cookie" | "password" | "sms", details: string, platform: number) => {
+  const sendNeteaseLogin = async (type: "cookie" | "password", details: string, platform: number) => {
     setBusy(true);
     setError("");
     try {
@@ -282,11 +220,6 @@ export function AccountLoginModal({ onClose }: { onClose(): void }) {
       if (!email.trim() || !password.trim()) return setError("请输入邮箱和密码");
       return sendNeteaseLogin("password", JSON.stringify({ account: email, password }), platform);
     }
-    if (tab === "sms") {
-      if (!phone.trim()) return setError("请输入手机号");
-      if (!code.trim()) return setError("请输入验证码");
-      return sendNeteaseLogin("sms", JSON.stringify({ phone, code }), platform);
-    }
     if (!pcUser.trim() || !pcPassword.trim()) return setError("请输入用户名和密码");
     setBusy(true);
     setError("");
@@ -303,42 +236,34 @@ export function AccountLoginModal({ onClose }: { onClose(): void }) {
     }
   };
 
-  const sendCode = async () => {
-    if (!phone.trim()) return setError("请输入手机号");
-    setSendingCode(true);
-    setError("");
-    try {
-      await gateway.send("login", { channel: "send_code", type: "", details: phone });
-    } catch (sendError) {
-      setSendingCode(false);
-      setError(sendError instanceof Error ? sendError.message : "验证码发送失败，请重试。");
-    }
-  };
+  const primaryPlatform = platform === "pe" ? 1 : 0;
 
   return (
-    <ModalFrame className="account-login-modal" onClose={onClose}>
-      <div className="account-login-tabs">
-        <div>{accountTabs.map((item, index) => <button className={tab === item.value ? "active" : ""} type="button" key={item.value} onClick={() => { setTab(item.value); setError(""); sessionStorage.setItem("X-ACTIVE-TAB", String(index)); }}>{item.label}</button>)}</div>
-        <button className="modal-close" type="button" onClick={onClose} aria-label="关闭弹窗"><X /></button>
-      </div>
-      <div className="account-login-body">
-        {tab === "cookie" ? <><textarea value={cookie} onChange={(event) => { setCookie(event.target.value); setError(""); }} placeholder="在此粘贴 Cookie…" disabled={busy} /><p className="account-login-note"><b>注意：</b>4399 电脑版的 Cookie 无法用于登录手机版。</p></> : null}
-        {tab === "email" ? <><input type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(""); }} placeholder="邮箱地址" autoComplete="email" disabled={busy} /><input type="password" value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} placeholder="密码" autoComplete="current-password" disabled={busy} /></> : null}
-        {tab === "sms" ? <><div className="sms-field"><input type="tel" value={phone} onChange={(event) => { setPhone(event.target.value); setError(""); }} placeholder="手机号" autoComplete="tel" disabled={busy} /><button type="button" disabled={sendingCode || countdown > 0 || busy} onClick={() => void sendCode()}>{sendingCode ? "发送中…" : countdown > 0 ? `${countdown} 秒` : "发送验证码"}</button></div><input type="text" value={code} onChange={(event) => { setCode(event.target.value); setError(""); }} placeholder="验证码" autoComplete="one-time-code" disabled={busy} /></> : null}
-        {tab === "4399pc" ? <><input type="text" value={pcUser} onChange={(event) => { setPcUser(event.target.value); setError(""); }} placeholder="用户名" autoComplete="username" disabled={busy} /><input type="password" value={pcPassword} onChange={(event) => { setPcPassword(event.target.value); setError(""); }} placeholder="密码" autoComplete="current-password" disabled={busy} />{captchaId ? <div className="captcha-field"><input type="text" value={captcha} onChange={(event) => setCaptcha(event.target.value)} placeholder="图形验证码" autoComplete="off" /><img src={`https://ptlogin.4399.com/ptlogin/captcha.do?captchaId=${captchaId}`} onClick={() => setCaptchaId(randomCaptchaId())} alt="图形验证码" title="点击刷新" /></div> : null}</> : null}
-        {error ? <p className="account-login-error">{error}</p> : null}
-        {tab === "4399pc" ? <div className="pc-login-actions"><button type="button" disabled={busy} onClick={() => void login(1)}>登录手机版</button><button type="button" disabled={busy} onClick={() => void login(0)}>登录电脑版</button><button className="primary" type="button" disabled={busy} onClick={() => void login(2)}>{busy ? "登录中…" : "混合登录"}</button><button className="register" type="button" disabled={busy} onClick={() => { setBusy(true); void gateway.send("register_4399").catch(() => setBusy(false)); }}>一键自动注册</button></div> : <div className="netease-login-actions"><button type="button" disabled={busy} onClick={() => void login(1)}>{busy ? "登录中…" : "登录手机版"}</button><button className="primary" type="button" disabled={busy} onClick={() => void login(0)}>{busy ? "登录中…" : "登录电脑版"}</button></div>}
-      </div>
-    </ModalFrame>
+    <div className="dialog-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="dialog-box" role="dialog" aria-modal="true" aria-labelledby="account-dialog-title">
+        <div className="dialog-header">
+          <h3 id="account-dialog-title">添加账号{platform === "pe" ? "(PE)" : ""}</h3>
+          <button className="dialog-close" type="button" onClick={onClose} aria-label="关闭弹窗">×</button>
+        </div>
+        <div className="dialog-body">
+          <div className="dialog-tabs" role="tablist" aria-label="登录方式">
+            {accountTabs.map((item, index) => <button className={`dialog-tab${tab === item.value ? " active" : ""}`} type="button" role="tab" aria-selected={tab === item.value} key={item.value} onClick={() => { setTab(item.value); setError(""); sessionStorage.setItem("X-ACTIVE-TAB", String(index)); }}>{item.label}</button>)}
+          </div>
+          {tab === "cookie" ? <textarea value={cookie} onChange={(event) => { setCookie(event.target.value); setError(""); }} placeholder="粘贴 Cookie 内容..." disabled={busy} /> : null}
+          {tab === "email" ? <><div className="form-group"><input type="email" value={email} onChange={(event) => { setEmail(event.target.value); setError(""); }} placeholder="邮箱地址" autoComplete="email" disabled={busy} /></div><div className="form-group"><input type="password" value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} placeholder="密码" autoComplete="current-password" disabled={busy} /></div></> : null}
+          {tab === "4399pc" ? <><div className="form-group"><input type="text" value={pcUser} onChange={(event) => { setPcUser(event.target.value); setError(""); }} placeholder="用户名" autoComplete="username" disabled={busy} /></div><div className="form-group"><input type="password" value={pcPassword} onChange={(event) => { setPcPassword(event.target.value); setError(""); }} placeholder="密码" autoComplete="current-password" disabled={busy} /></div>{captchaId ? <div className="captcha-field"><input type="text" value={captcha} onChange={(event) => setCaptcha(event.target.value)} placeholder="图形验证码" autoComplete="off" /><img src={`https://ptlogin.4399.com/ptlogin/captcha.do?captchaId=${captchaId}`} onClick={() => setCaptchaId(randomCaptchaId())} alt="图形验证码" title="点击刷新" /></div> : null}</> : null}
+          {error ? <p className="dialog-error">{error}</p> : null}
+        </div>
+        <div className="dialog-footer">
+          <button className="btn-secondary" type="button" onClick={onClose}>取消</button>
+          <button className="btn-accent" type="button" disabled={busy} onClick={() => void login(primaryPlatform)}>{busy ? "登录中…" : "登录"}</button>
+        </div>
+      </section>
+    </div>
   );
 }
 
 function randomCaptchaId(): string {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-}
-
-function ModalFrame({ children, className = "", onClose }: { children: React.ReactNode; className?: string; onClose(): void }) {
-  void onClose;
-  return <div className="legacy-modal-backdrop" role="presentation"><section className={`legacy-modal ${className}`} role="dialog" aria-modal="true">{children}</section></div>;
 }
 

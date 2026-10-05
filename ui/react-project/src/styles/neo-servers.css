@@ -1,0 +1,530 @@
+/* Server cards and dialogs follow NeoOpenNEL's network and detail layouts. */
+.neo-server-browser .server-browser-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.neo-server-browser .server-browser-header h1 {
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.neo-server-browser .server-browser-header p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin: 0;
+}
+
+.neo-server-browser-actions {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.neo-server-browser .server-search {
+  max-width: 240px;
+  position: relative;
+  width: 200px;
+}
+
+.neo-server-browser .server-search svg {
+  color: var(--text-muted);
+  height: 14px;
+  left: 10px;
+  width: 14px;
+}
+
+.neo-server-browser .server-search input {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  height: 34px;
+  padding: 7px 12px 7px 31px;
+}
+
+.neo-server-browser .server-search input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgb(0 120 212 / 12%);
+}
+
+.neo-server-browser .server-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.neo-server-refresh,
+.neo-server-browser .server-list-footer button,
+.neo-server-browser .server-list-error button,
+.neo-server-browser .bedrock-realms-actions button,
+.neo-server-browser .bedrock-rental-pagination button {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  gap: 6px;
+  justify-content: center;
+  min-height: 34px;
+  padding: 6px 12px;
+}
+
+.neo-server-refresh svg {
+  height: 14px;
+  width: 14px;
+}
+
+.neo-server-refresh:hover,
+.neo-server-browser .server-list-footer button:hover,
+.neo-server-browser .server-list-error button:hover,
+.neo-server-browser .bedrock-realms-actions button:hover,
+.neo-server-browser .bedrock-rental-pagination button:hover {
+  background: var(--hover-bg);
+}
+
+.neo-server-refresh:disabled,
+.neo-server-browser .bedrock-realms-actions button:disabled,
+.neo-server-browser .bedrock-rental-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.neo-server-browser .server-card-grid {
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.neo-server-browser .neo-server-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: block;
+  height: 280px;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+  transition: transform 150ms, box-shadow 150ms;
+}
+
+.neo-server-browser .neo-server-card:hover {
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+  transform: translateY(-2px);
+}
+
+.neo-server-card .server-card-media {
+  aspect-ratio: auto;
+  background: var(--surface);
+  height: 100%;
+  inset: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.neo-server-card .server-image-placeholder {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+}
+
+.neo-server-card-gradient {
+  background: linear-gradient(to bottom, transparent 40%, rgb(0 0 0 / 75%) 100%);
+  inset: 0;
+  position: absolute;
+}
+
+.neo-server-card .server-card-body {
+  bottom: 0;
+  color: #fff;
+  display: block;
+  left: 0;
+  padding: 16px;
+  position: absolute;
+  right: 0;
+}
+
+.neo-server-card-name {
+  color: #fff;
+  display: -webkit-box;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0 0 4px;
+  overflow: hidden;
+  text-shadow: 0 1px 3px rgb(0 0 0 / 40%);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.neo-server-card-online {
+  color: rgb(255 255 255 / 85%);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.neo-server-card-id {
+  color: rgb(255 255 255 / 60%);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.neo-server-card-lock,
+.neo-rental-card-tags > span {
+  align-items: center;
+  color: rgb(255 255 255 / 75%);
+  display: inline-flex;
+  font-size: 11px;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.neo-server-card-lock svg,
+.neo-rental-card-tags svg {
+  height: 12px;
+  width: 12px;
+}
+
+.neo-rental-card-tags {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 3px;
+}
+
+.neo-rental-card-tags .bedrock-rental-status {
+  background: transparent;
+  padding: 0;
+}
+
+.neo-rental-card-tags .bedrock-rental-status.online i {
+  background: #4ade80;
+}
+
+.neo-server-browser .server-list-footer,
+.neo-server-empty,
+.neo-server-browser .bedrock-rental-empty,
+.neo-server-browser .bedrock-rental-loading {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.neo-server-empty {
+  padding: 60px 20px;
+}
+
+.neo-server-browser .server-list-error {
+  align-items: center;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  padding: 32px 20px;
+}
+
+.neo-server-browser .bedrock-rental-pagination {
+  background: var(--bg);
+  flex-wrap: wrap;
+  gap: 12px;
+  height: auto;
+  margin: 0 0 16px;
+  padding: 8px 0;
+  position: static;
+}
+
+.neo-server-browser .bedrock-rental-pagination > span {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.neo-server-browser .bedrock-rental-pagination button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.neo-server-browser .bedrock-rental-empty h3,
+.neo-server-browser .bedrock-rental-empty p {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* ── Server Detail ── */
+.server-detail { max-width: 700px; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.server-detail-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.server-detail-back {
+  width: 32px; height: 32px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; color: var(--text);
+  transition: background 0.12s; flex-shrink: 0;
+}
+.server-detail-back:hover { background: var(--bg); }
+.server-detail-title { font-size: 18px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.server-detail-images {
+  position: relative; border-radius: 12px; overflow: hidden;
+  height: 240px; margin-bottom: 16px; background: var(--surface); border: 1px solid var(--border);
+}
+.server-detail-images img { width: 100%; height: 100%; object-fit: cover; }
+.server-detail-images .detail-img-placeholder { width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.server-detail-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin-bottom: 20px; white-space: pre-wrap; word-break: break-word; }
+.server-detail-section { margin-bottom: 16px; }
+.server-detail-section-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.server-detail-roles { display: flex; flex-direction: column; gap: 8px; }
+
+.role-row {
+  display: flex; align-items: center; padding: 10px 14px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  transition: border-color 0.12s;
+}
+.role-row:hover { border-color: var(--accent); }
+.role-row-left { flex: 1; min-width: 0; }
+.role-row-name { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.role-row-banned { border-color: #e74c3c33; background: #e74c3c08; }
+.role-ban-info { font-size: 11px; color: #e74c3c; margin-top: 2px; display: flex; gap: 10px; flex-wrap: wrap; }
+.role-ban-permanent { font-weight: 600; }
+.role-ban-countdown { font-variant-numeric: tabular-nums; }
+.role-ban-date { color: var(--text-muted); }
+.role-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.role-row-actions button {
+  padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12px; cursor: pointer; transition: background 0.12s, border-color 0.12s;
+  background: var(--surface); color: var(--text);
+}
+.role-row-actions button:hover { background: var(--bg); }
+.role-row-actions .role-launch-btn { background: var(--accent); color: #fff; border-color: var(--accent); }
+.role-row-actions .role-launch-btn:hover { opacity: 0.85; }
+.role-row-actions .role-white-btn { background: var(--surface); color: var(--text); }
+
+.detail-add-role-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; padding: 10px; border: 1px dashed var(--border); border-radius: 8px;
+  background: transparent; color: var(--text-muted); font-size: 13px;
+  cursor: pointer; transition: border-color 0.12s, color 0.12s;
+}
+.detail-add-role-btn:hover { border-color: var(--accent); color: var(--accent); }
+.detail-no-roles { text-align: center; padding: 20px; font-size: 13px; color: var(--text-muted); }
+.detail-password-group { margin-bottom: 16px; }
+.detail-password-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+.detail-password-group input {
+  width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; background: var(--surface); color: var(--text); outline: none;
+  transition: border-color 0.15s; box-sizing: border-box;
+}
+.detail-password-group input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.12); }
+
+/* ── Dialog ── */
+.dialog-overlay {
+  position: fixed; inset: 0; z-index: 5000;
+  background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center;
+  animation: dialog-fade-in 0.15s ease-out;
+}
+@keyframes dialog-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.dialog-overlay.closing { animation: dialog-fade-out 0.15s ease-in forwards; }
+@keyframes dialog-fade-out { from { opacity: 1; } to { opacity: 0; } }
+
+.dialog-box {
+  background: var(--surface); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+  border: 1px solid var(--border); border-radius: 10px;
+  width: 420px; box-shadow: 0 16px 48px rgba(0,0,0,0.18);
+  animation: dialog-slide-in 0.2s ease-out;
+}
+@keyframes dialog-slide-in { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.dialog-overlay.closing .dialog-box { animation: dialog-slide-out 0.15s ease-in forwards; }
+@keyframes dialog-slide-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(8px) scale(0.97); } }
+
+.dialog-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 0; }
+.dialog-header h3 { font-size: 16px; font-weight: 700; }
+.dialog-close {
+  width: 28px; height: 28px; border: none; background: transparent;
+  font-size: 16px; line-height: 1; color: var(--text-muted); cursor: pointer;
+  border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0;
+}
+.dialog-close:hover { background: var(--hover-bg); color: var(--text); }
+.dialog-body { padding: 16px 20px; }
+.dialog-tabs { display: flex; gap: 4px; margin-bottom: 16px; background: var(--bg); border-radius: 8px; padding: 3px; }
+.dialog-tab {
+  flex: 1; padding: 7px 0; border: none; background: transparent; border-radius: 6px;
+  font-size: 13px; font-weight: 500; color: var(--text-secondary); cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.dialog-tab:hover { color: var(--text); }
+.dialog-tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.dialog-body textarea {
+  width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 13px; font-family: inherit; background: var(--surface); color: var(--text);
+  outline: none; resize: vertical; transition: border-color 0.15s;
+}
+.dialog-body textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.12); }
+.dialog-body textarea::placeholder { color: var(--text-muted); }
+.dialog-error { font-size: 12px; color: #EF4444; min-height: 18px; margin-top: 4px; }
+.dialog-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 0 20px 16px; }
+
+.role-random-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.btn-random-name {
+  padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); color: var(--text-secondary); font-size: 12px;
+  cursor: pointer; transition: background 0.12s, color 0.12s;
+}
+.btn-random-name:hover { background: var(--bg); color: var(--text); }
+
+/* ── Custom Select ── */
+.custom-select { position: relative; width: 100%; }
+.custom-select-trigger {
+  width: 100%; padding: 8px 32px 8px 12px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); backdrop-filter: blur(10px); color: var(--text);
+  font-size: 13px; text-align: left; cursor: pointer; transition: border-color 0.15s;
+}
+.custom-select-trigger:hover { border-color: var(--text-muted); }
+.custom-select-arrow { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted); transition: transform 0.2s; }
+.custom-select.open .custom-select-arrow { transform: translateY(-50%) rotate(180deg); }
+.custom-select-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--surface); backdrop-filter: blur(30px); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px; box-shadow: var(--shadow-lg); z-index: 100;
+  max-height: 0; overflow: hidden; opacity: 0;
+  transition: max-height 0.2s ease, opacity 0.15s ease;
+}
+.custom-select.open .custom-select-dropdown { max-height: 200px; overflow-y: auto; opacity: 1; }
+.custom-select-option {
+  padding: 8px 12px; border-radius: 6px; font-size: 13px; cursor: pointer;
+  transition: background 0.1s;
+}
+.custom-select-option:hover { background: var(--hover-bg); }
+.custom-select-option.selected { color: var(--accent); font-weight: 600; }
+
+.btn-secondary {
+  padding: 7px 16px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface);
+  color: var(--text); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: background 0.12s;
+}
+.btn-secondary:hover { background: var(--bg); }
+
+.btn-accent {
+  padding: 7px 16px; border: none; border-radius: 6px;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: background 0.12s;
+}
+.btn-accent:hover { background: var(--accent-hover); }
+
+.btn-loading { position: relative; color: transparent !important; pointer-events: none; }
+.btn-loading::after {
+  content: ''; position: absolute; width: 14px; height: 14px;
+  top: 50%; left: 50%; margin: -7px 0 0 -7px;
+  border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff;
+  border-radius: 50%; animation: btn-spin 0.5s linear infinite;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+
+/* ── Form ── */
+.form-group { margin-bottom: 16px; }
+.form-group input {
+  width: 100%; height: 42px; padding: 0 14px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: 14px; background: var(--surface);
+  color: var(--text); outline: none; transition: border-color 0.15s;
+}
+.form-group input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.12); }
+.form-group input::placeholder { color: var(--text-muted); }
+
+.java-join-backdrop {
+  background: rgb(0 0 0 / 35%);
+  backdrop-filter: none;
+}
+
+.java-join-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 18%);
+  max-height: calc(100vh - 48px);
+  max-width: calc(100vw - 32px);
+  overflow-y: auto;
+  padding: 0;
+  width: 420px;
+}
+
+.java-join-modal > header {
+  align-items: flex-start;
+  border-bottom: 0;
+  padding: 16px 20px 0;
+}
+
+.java-join-modal > header h2 {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.java-join-modal > header button {
+  border-radius: 8px;
+  color: var(--text-muted);
+}
+
+.java-join-modal > header button:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.java-join-modal > header svg {
+  height: 18px;
+  width: 18px;
+}
+
+
+/* Only behavior adapters are added to the original NeoOpenNEL detail styles. */
+.custom-select-option { display: block; width: 100%; border: none; background: transparent; color: inherit; font-family: inherit; text-align: left; }
+.custom-select-empty { padding: 8px 12px; font-size: 13px; color: var(--text-muted); }
+.role-row-unavailable { opacity: 0.55; }
+.role-row-actions button:disabled, .detail-add-role-btn:disabled, .btn-secondary:disabled, .btn-accent:disabled { cursor: not-allowed; opacity: 0.6; }
+.dialog-box { max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow-y: auto; }
+.java-role-dialog { width: 360px; }
+.java-join-modal .java-password-body { padding: 16px 20px; }
+.java-join-modal .java-password-body input { background: var(--surface); border-color: var(--border); color: var(--text); font-size: 13px; min-height: 36px; padding: 8px 12px; }
+.java-join-modal .java-password-body > button { background: var(--accent); border-color: var(--accent); border-radius: 6px; color: #fff; font-size: 13px; min-height: 34px; padding: 6px 14px; }
+
+@media (max-width: 640px) {
+  .neo-server-browser .server-browser-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .neo-server-browser-actions,
+  .neo-server-browser .server-search {
+    max-width: none;
+    width: 100%;
+  }
+
+  .neo-server-browser .server-card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+
+  .neo-server-browser .neo-server-card {
+    height: 240px;
+  }
+
+  .neo-server-browser .bedrock-rental-pagination > div {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neo-server-browser .neo-server-card,
+  .role-row {
+    transition: none;
+  }
+}

@@ -1,0 +1,81 @@
+/* ── Account ── */
+.account-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.account-header h2 { margin-bottom: 4px; }
+.account-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+.account-table {
+  background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+}
+.account-row {
+  display: grid; grid-template-columns: 140px 70px 100px 60px 1fr 130px;
+  align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--border);
+}
+.account-row:last-child { border-bottom: none; }
+.account-header-row { background: var(--bg); font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+.account-cell { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell-id { font-weight: 600; }
+.cell-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.cell-actions .btn-sm { padding: 4px 0; font-size: 12px; border-radius: 6px; min-width: 52px; text-align: center; }
+
+.status-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.status-online { background: rgba(16, 185, 129, 0.12); color: #059669; }
+.status-offline { background: rgba(107, 114, 128, 0.12); color: #6B7280; }
+.platform-badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; }
+.platform-pc { background: rgba(59, 130, 246, 0.12); color: #2563EB; }
+.platform-pe { background: rgba(168, 85, 247, 0.12); color: #7C3AED; }
+
+.alias-input {
+  width: 100%; box-sizing: border-box; padding: 4px 8px 4px 0;
+  border: 1px solid transparent; border-radius: 8px; font-size: 13px;
+  background: transparent; color: var(--text); outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.alias-input:hover { background: var(--bg); }
+.alias-input:focus { padding-left: 8px; border-color: var(--accent); background: var(--surface); }
+.alias-input::placeholder { color: var(--text-muted); }
+
+.account-empty, .account-loading {
+  text-align: center; padding: 60px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.account-empty-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.account-empty-desc { font-size: 13px; color: var(--text-muted); }
+.account-loading { font-size: 13px; color: var(--text-muted); }
+
+/* ── Network / Server Grid ── */
+.network-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.network-header h2 { margin-bottom: 4px; }
+.network-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.network-search {
+  width: 200px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; background: var(--surface);
+  color: var(--text); outline: none; transition: border-color 0.15s;
+}
+.network-search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.12); }
+.network-search::placeholder { color: var(--text-muted); }
+.network-loading, .network-empty { text-align: center; padding: 60px 20px; font-size: 13px; color: var(--text-muted); }
+
+.server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+.server-card {
+  position: relative; border-radius: 12px; overflow: hidden;
+  height: 280px; background: var(--surface);
+  border: 1px solid var(--border); cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.server-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+.server-card-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.server-card-gradient { position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.75) 100%); }
+.server-card-body { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px; color: #fff; }
+.server-card-name {
+  font-size: 15px; font-weight: 600; margin-bottom: 4px;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+.server-card-online { font-size: 12px; color: rgba(255,255,255,0.85); margin-bottom: 4px; }
+.server-card-id { font-size: 11px; color: rgba(255,255,255,0.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.server-card-placeholder { position: absolute; inset: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.rental-lock { display: inline-block; font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+.network-load-more { text-align: center; padding: 20px; }
+.network-scroll-loading { font-size: 13px; color: var(--text-muted); }

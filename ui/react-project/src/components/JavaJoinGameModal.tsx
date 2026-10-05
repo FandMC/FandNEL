@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useGateway, useToasts } from "../context/AppContext";
 import { generateRandomNickname } from "../lib/randomNickname";
-import { readGatewaySettings, writeGatewaySettings, type GatewaySettings } from "../lib/settingsStorage";
+import { readGatewaySettings } from "../lib/settingsStorage";
 import type { GatewayMessage } from "../types";
 
 export type JavaGameKind = "net_game" | "rental_game";
@@ -55,17 +56,6 @@ function messagesAfter(messages: GatewayMessage[], lastHandled: GatewayMessage |
   if (!lastHandled) return messages;
   const index = messages.lastIndexOf(lastHandled);
   return messages.slice(index >= 0 ? index + 1 : Math.max(messages.length - 1, 0));
-}
-
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange(checked: boolean): void }) {
-  return (
-    <div className="java-join-toggle-row">
-      <span>{label}</span>
-      <button type="button" role="switch" aria-checked={checked} aria-label={label} className={checked ? "active" : ""} onClick={() => onChange(!checked)}>
-        <i />
-      </button>
-    </div>
-  );
 }
 
 export function SelectMenu({
@@ -132,6 +122,12 @@ export function CreateRoleDialog({ accountId, gameId, kind, onClose }: { account
   const lastHandled = useRef<GatewayMessage | null>(gateway.messages.at(-1) ?? null);
 
   useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [onClose]);
+
+  useEffect(() => {
     const pending = messagesAfter(gateway.messages, lastHandled.current);
     for (const message of pending) {
       if (message.type !== "create_role") continue;
@@ -152,38 +148,48 @@ export function CreateRoleDialog({ accountId, gameId, kind, onClose }: { account
     }
   };
 
-  return (
-    <div className="java-join-backdrop nested" role="presentation">
-      <section className="java-join-modal" role="dialog" aria-modal="true" aria-label="创建角色" onMouseDown={(event) => event.stopPropagation()}>
-        <header><h2>创建角色</h2><button type="button" aria-label="关闭" onClick={onClose}><CloseIcon /></button></header>
-        <div className="java-create-role-body">
-          <label><span>角色名称</span><input type="text" placeholder="请输入角色名称" value={name} disabled={submitting} onChange={(event) => setName(event.target.value)} /></label>
+  return createPortal(
+    <div className="dialog-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="dialog-box java-role-dialog" role="dialog" aria-modal="true" aria-label="添加角色" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="dialog-header"><h3>添加角色</h3><button className="dialog-close" type="button" aria-label="关闭" onClick={onClose}>&times;</button></header>
+        <div className="dialog-body">
+          <div className="form-group"><input type="text" aria-label="角色名称" placeholder="输入角色名称" maxLength={8} value={name} disabled={submitting} onChange={(event) => setName(event.target.value)} /></div>
+          <div className="role-random-actions">
+            <button className="btn-random-name" type="button" onClick={() => setName(generateRandomNickname().slice(0, 8))}>随机名字</button>
+            <button className="btn-random-name" type="button" onClick={() => setName(generateRandomNickname(true).slice(0, 8))}>随机中文名</button>
+          </div>
         </div>
-        <footer className="java-create-role-actions">
-          <button type="button" onClick={() => setName(generateRandomNickname())}>随机名称</button>
-          <button type="button" className="primary" disabled={!name.trim() || submitting} onClick={() => void submit()}>{submitting ? "处理中..." : "创建角色"}</button>
+        <footer className="dialog-footer">
+          <button className="btn-secondary" type="button" onClick={onClose}>取消</button>
+          <button className="btn-accent" type="button" disabled={!name.trim() || submitting} onClick={() => void submit()}>{submitting ? "处理中..." : "添加"}</button>
         </footer>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
-function CloseIcon() {
-  return <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M19 6.41L17.59 5L12 10.59L6.41 5L5 6.41L10.59 12L5 17.59L6.41 19L12 13.41L17.59 19L19 17.59L13.41 12L19 6.41Z" fill="currentColor" /></svg>;
+type LaunchAction = "proxy" | "game";
+interface PendingLaunch {
+  action: LaunchAction;
+  account: Account;
+  role: Role;
+  phase: "password" | "launch";
+  identify?: string;
 }
 
-export function JavaJoinGameModal({
+export function JavaGameLaunchControls({
   kind,
   gameId,
   gameName,
   details,
-  onClose,
+  initialPassword = "",
 }: {
   kind: JavaGameKind;
   gameId: string;
   gameName: string;
   details: JavaGameDetails;
-  onClose(): void;
+  initialPassword?: string;
 }) {
   const gateway = useGateway();
   const navigate = useNavigate();
@@ -191,110 +197,54 @@ export function JavaJoinGameModal({
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [accountIndex, setAccountIndex] = useState(() => Number(sessionStorage.getItem("X-CURRENT-USER-INDEX") ?? "0"));
-  const [roleIndex, setRoleIndex] = useState(0);
   const [loadingRoles, setLoadingRoles] = useState(true);
-  const [launching, setLaunching] = useState(false);
-  const [joining, setJoining] = useState(false);
+  const [activeLaunch, setActiveLaunch] = useState<{ action: LaunchAction; role: string } | null>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [password, setPassword] = useState(initialPassword);
+  const [passwordError, setPasswordError] = useState("");
   const [createRoleOpen, setCreateRoleOpen] = useState(false);
-  const [settings, setSettings] = useState<GatewaySettings>(readGatewaySettings());
   const handledMessageRef = useRef<GatewayMessage | null>(gateway.messages.at(-1) ?? null);
-  const joinRequestIdentifyRef = useRef<string | null>(null);
+  const pendingLaunchRef = useRef<PendingLaunch | null>(null);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
   const selectedAccount = accounts[accountIndex] ?? null;
-  const selectedRole = roles[roleIndex] ?? null;
-  const socks5 = settings.enableSocks5;
-
-  const updateSettings = <Key extends keyof GatewaySettings>(key: Key, nextValue: GatewaySettings[Key]) => {
-    setSettings((current) => {
-      const next = { ...current, [key]: nextValue };
-      void writeGatewaySettings(next).catch(() => {});
-      return next;
-    });
-  };
+  const requiresPassword = kind === "rental_game" && value(details, "has_pwd") === "1";
 
   const requestRoles = useCallback(async (account: Account) => {
     setLoadingRoles(true);
+    setRoles([]);
     await gateway.send("get_roles", { id: value(account, "id"), game: gameId, type: kind });
   }, [gameId, gateway.send, kind]);
 
   useEffect(() => {
-    document.body.style.overflow = "hidden";
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      if (createRoleOpen) setCreateRoleOpen(false);
-      else onClose();
+    const closeAccountMenu = (event: MouseEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) setAccountOpen(false);
     };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.body.style.overflow = "auto";
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [createRoleOpen, onClose]);
+    document.addEventListener("mousedown", closeAccountMenu);
+    return () => document.removeEventListener("mousedown", closeAccountMenu);
+  }, []);
 
   useEffect(() => {
     if (gateway.status !== "connected") return;
     void gateway.send("get_accounts", "available").catch((error) => notify(error instanceof Error ? error.message : "无法加载 Java 账号。", "error"));
   }, [gateway.send, gateway.status, notify]);
 
-  useEffect(() => {
-    const previous = handledMessageRef.current;
-    const previousIndex = previous ? gateway.messages.lastIndexOf(previous) : -1;
-    const pending = gateway.messages.slice(previous ? Math.max(previousIndex + 1, 0) : 0);
-    for (const message of pending) {
-      if (message.type === "get_accounts") {
-        const nextAccounts = records(message.payload);
-        const nextIndex = Math.min(accountIndex, Math.max(nextAccounts.length - 1, 0));
-        setAccounts(nextAccounts);
-        setAccountIndex(nextIndex);
-        if (nextAccounts[nextIndex]) void requestRoles(nextAccounts[nextIndex]);
-        else setLoadingRoles(false);
-      } else if (message.type === "get_roles") {
-        const nextRoles = records(message.payload);
-        setRoles(nextRoles);
-        const firstAvailable = nextRoles.findIndex((role) => !roleUnavailable(role, kind));
-        setRoleIndex(firstAvailable >= 0 ? firstAvailable : 0);
-        setLoadingRoles(false);
-      } else if (message.type === "join_game/success") {
-        joinRequestIdentifyRef.current = null;
-        setJoining(false);
-        onClose();
-        navigate(`/user-center/launchers/configuration?id=${encodeURIComponent(String(parsePayload(message.payload)))}`);
-      } else if (message.type === "error_notification" && message.identify === joinRequestIdentifyRef.current) {
-        joinRequestIdentifyRef.current = null;
-        setJoining(false);
-      }
-    }
-    handledMessageRef.current = gateway.messages.at(-1) ?? null;
-  }, [accountIndex, gateway.messages, kind, navigate, onClose, requestRoles]);
-
   const version = useMemo(() => {
     if (kind === "rental_game") return { id: 0x45b6bb0c, name: value(details, "mc_version") };
     const item = firstVersion(details);
     return { id: Number(item.mcversionid ?? 0), name: value(item, "name") };
   }, [details, kind]);
-  const address = kind === "rental_game" ? value(details, "server_ip") : value(details, "server_address");
-  const port = Number(details.server_port ?? 0);
-
-  const socks5Payload = () => {
+  const sendLaunch = useCallback(async (request: PendingLaunch, serverDetails: JavaGameDetails) => {
+    const settings = readGatewaySettings();
+    const address = kind === "rental_game" ? value(serverDetails, "server_ip") : value(serverDetails, "server_address");
+    const port = Number(serverDetails.server_port ?? 0);
+    request.phase = "launch";
     const proxyParts = settings.socks5Address.split(":");
-    const host = proxyParts[0] ?? "127.0.0.1";
-    return {
-      enabled: socks5,
-      address: host,
-      port: proxyParts.length >= 2 ? Number(proxyParts[1]) : 1080,
-      username: settings.socks5Username || null,
-      password: settings.socks5Password || null,
-    };
-  };
-
-  const launchGame = async () => {
-    if (!selectedAccount || !selectedRole) return;
-    setLaunching(true);
-    try {
-      await gateway.send("launch_game", {
-        user_id: value(selectedAccount, "id"),
+    const identify = request.action === "game"
+      ? await gateway.send("launch_game", {
+        user_id: value(request.account, "id"),
         game_name: gameName,
         game_id: gameId,
-        role_name: value(selectedRole, "name"),
+        role_name: value(request.role, "name"),
         client_type: 1,
         game_type: kind === "rental_game" ? 8 : 2,
         game_version_id: version.id,
@@ -303,73 +253,134 @@ export function JavaJoinGameModal({
         server_port: port,
         max_game_memory: Number(settings.jvmMaxMemory),
         load_core_mods: settings.loadCoreModules,
-      });
-      onClose();
-    } catch (error) {
-      notify(error instanceof Error ? error.message : "无法启动 Java 游戏。", "error");
-    } finally {
-      setLaunching(false);
-    }
-  };
-
-  const launchInterceptor = async () => {
-    if (!selectedAccount || !selectedRole) return;
-    setJoining(true);
-    try {
-      joinRequestIdentifyRef.current = await gateway.send("join_game", {
-        id: value(selectedAccount, "id"),
+      })
+      : await gateway.send("join_game", {
+        id: value(request.account, "id"),
         name: gameName,
         game: gameId,
-        role: value(selectedRole, "name"),
+        role: value(request.role, "name"),
         vid: version.id,
         version: version.name,
         ip: address,
         port,
-        socks5: socks5Payload(),
+        socks5: {
+          enabled: settings.enableSocks5,
+          address: proxyParts[0] || "127.0.0.1",
+          port: proxyParts.length >= 2 ? Number(proxyParts[1]) : 1080,
+          username: settings.socks5Username || null,
+          password: settings.socks5Password || null,
+        },
       });
+    if (pendingLaunchRef.current === request) request.identify = identify;
+  }, [gameId, gameName, gateway.send, kind, version]);
+
+  const launchRole = async (action: LaunchAction, role: Role) => {
+    if (!selectedAccount || roleUnavailable(role, kind) || pendingLaunchRef.current) return;
+    if (requiresPassword && !password.trim()) {
+      setPasswordError("请输入服务器密码");
+      return;
+    }
+    const request: PendingLaunch = { action, account: selectedAccount, role, phase: requiresPassword ? "password" : "launch" };
+    pendingLaunchRef.current = request;
+    setActiveLaunch({ action, role: value(role, "name") });
+    setPasswordError("");
+    try {
+      if (requiresPassword) {
+        request.identify = await gateway.send("rental_games_detail", `${gameId}:${password.trim()}`);
+      } else {
+        await sendLaunch(request, details);
+      }
     } catch (error) {
-      joinRequestIdentifyRef.current = null;
-      setJoining(false);
-      notify(error instanceof Error ? error.message : "无法启动 Java 代理通道。", "error");
+      pendingLaunchRef.current = null;
+      setActiveLaunch(null);
+      notify(error instanceof Error ? error.message : "无法启动 Java 游戏。", "error");
     }
   };
 
+  useEffect(() => {
+    const pending = messagesAfter(gateway.messages, handledMessageRef.current);
+    for (const message of pending) {
+      if (message.type === "get_accounts") {
+        const nextAccounts = records(message.payload);
+        const nextIndex = Math.min(accountIndex, Math.max(nextAccounts.length - 1, 0));
+        setAccounts(nextAccounts);
+        setAccountIndex(nextIndex);
+        if (nextAccounts[nextIndex]) void requestRoles(nextAccounts[nextIndex]).catch((error) => { setLoadingRoles(false); notify(error instanceof Error ? error.message : "无法加载角色。", "error"); });
+        else { setRoles([]); setLoadingRoles(false); }
+      } else if (message.type === "get_roles") {
+        setRoles(records(message.payload));
+        setLoadingRoles(false);
+      }
+      const request = pendingLaunchRef.current;
+      if (!request?.identify || message.identify !== request.identify) continue;
+      if (message.type === "rental_games_detail" && request.phase === "password") {
+        const parsed = parsePayload(message.payload);
+        const record = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as JavaGameDetails : null;
+        if (!record || (record.code !== undefined && Number(record.code) !== 0)) {
+          setPasswordError(value(record, "message") || "密码验证失败，请重试");
+          pendingLaunchRef.current = null;
+          setActiveLaunch(null);
+          continue;
+        }
+        const serverDetails = record.entity && typeof record.entity === "object" ? record.entity as JavaGameDetails : record;
+        void sendLaunch(request, serverDetails).catch((error) => { pendingLaunchRef.current = null; setActiveLaunch(null); notify(error instanceof Error ? error.message : "无法启动 Java 游戏。", "error"); });
+      } else if (message.type === "join_game/success" && request.action === "proxy") {
+        pendingLaunchRef.current = null;
+        setActiveLaunch(null);
+        navigate(`/user-center/launchers/configuration?id=${encodeURIComponent(String(parsePayload(message.payload)))}`);
+      } else if (message.type === "launch_game" && request.action === "game") {
+        pendingLaunchRef.current = null;
+        setActiveLaunch(null);
+      } else if (message.type === "error_notification") {
+        if (request.phase === "password") setPasswordError(typeof message.payload === "string" ? message.payload : "密码验证失败，请重试");
+        pendingLaunchRef.current = null;
+        setActiveLaunch(null);
+      }
+    }
+    handledMessageRef.current = gateway.messages.at(-1) ?? null;
+  }, [accountIndex, gateway.messages, navigate, notify, requestRoles, sendLaunch]);
+
   const chooseAccount = (index: number) => {
     setAccountIndex(index);
-    setRoleIndex(0);
+    setAccountOpen(false);
     sessionStorage.setItem("X-CURRENT-USER-INDEX", String(index));
     sessionStorage.setItem("X-CURRENT-USER-ID", value(accounts[index], "id"));
-    if (accounts[index]) void requestRoles(accounts[index]).catch((error) => notify(error instanceof Error ? error.message : "无法加载角色。", "error"));
+    if (accounts[index]) void requestRoles(accounts[index]).catch((error) => { setLoadingRoles(false); notify(error instanceof Error ? error.message : "无法加载角色。", "error"); });
   };
 
   return (
-    <div className="java-join-backdrop" role="presentation" onMouseDown={onClose}>
-      <section className="java-join-modal" role="dialog" aria-modal="true" aria-label="加入游戏" onMouseDown={(event) => event.stopPropagation()}>
-        <header><h2>加入游戏</h2><button type="button" aria-label="关闭" onClick={onClose}><CloseIcon /></button></header>
-        <div className="java-join-body">
-          <SelectMenu title="账号" items={accounts} selectedIndex={accountIndex} onChange={chooseAccount} itemLabel={accountLabel} />
-          <SelectMenu
-            title="角色"
-            items={roles}
-            selectedIndex={roleIndex}
-            onChange={setRoleIndex}
-            itemLabel={(role) => value(role, "name")}
-            itemDisabled={(role) => roleUnavailable(role, kind)}
-            action={{ label: "创建新角色", onClick: () => setCreateRoleOpen(true) }}
-          />
-          <Toggle label="SOCKS5 代理" checked={socks5} onChange={(checked) => updateSettings("enableSocks5", checked)} />
-          {socks5 ? (
-            <div className="java-join-proxy">
-              <p className="java-join-proxy-hint">使用手动配置的 SOCKS5 地址和登录凭据。</p>
-            </div>
-          ) : null}
+    <>
+      {requiresPassword ? <div className="detail-password-group"><label htmlFor="java-server-password">服务器密码</label><input id="java-server-password" type="password" placeholder="输入服务器密码" value={password} disabled={Boolean(activeLaunch)} onChange={(event) => { setPassword(event.target.value); setPasswordError(""); }} />{passwordError ? <div className="dialog-error" role="alert">{passwordError}</div> : null}</div> : null}
+      <div className="server-detail-section">
+        <div className="server-detail-section-title">账号</div>
+        <div className={`custom-select${accountOpen ? " open" : ""}`} ref={accountMenuRef}>
+          <button className="custom-select-trigger" type="button" aria-haspopup="listbox" aria-expanded={accountOpen} disabled={Boolean(activeLaunch)} onClick={() => setAccountOpen((open) => !open)}>{selectedAccount ? accountLabel(selectedAccount) : "选择账号"}</button>
+          <svg className="custom-select-arrow" width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M0 0l5 6 5-6z" fill="currentColor" /></svg>
+          <div className="custom-select-dropdown" role="listbox" aria-label="账号" hidden={!accountOpen}>
+            {accounts.length === 0 ? <div className="custom-select-empty">没有已登录的游戏账号</div> : accounts.map((account, index) => <button className={`custom-select-option${index === accountIndex ? " selected" : ""}`} type="button" role="option" aria-selected={index === accountIndex} key={value(account, "id")} onClick={() => chooseAccount(index)}>{accountLabel(account)}</button>)}
+          </div>
         </div>
-        <footer className="java-join-actions">
-          <button type="button" disabled={launching} onClick={() => void launchGame()}>{launching ? "处理中..." : "启动游戏"}</button>
-          <button type="button" className="primary" disabled={joining || loadingRoles} onClick={() => void launchInterceptor()}>{joining ? "处理中..." : "启动代理通道"}</button>
-        </footer>
-      </section>
+      </div>
+      <div className="server-detail-section">
+        <div className="server-detail-section-title">角色列表</div>
+        <div className="server-detail-roles">
+          {loadingRoles ? <div className="detail-no-roles">加载中...</div> : roles.length === 0 ? <div className="detail-no-roles">暂无角色，请添加</div> : roles.map((role, index) => {
+            const unavailable = roleUnavailable(role, kind);
+            const roleName = value(role, "name");
+            return (
+              <div className={`role-row${unavailable ? " role-row-unavailable" : ""}`} key={`${value(role, "id") || roleName}-${index}`}>
+                <div className="role-row-left"><div className="role-row-name">{roleName}</div>{unavailable ? <div className="role-ban-info">删除中</div> : null}</div>
+                <div className="role-row-actions">
+                  <button className={`role-launch-btn${activeLaunch?.action === "proxy" && activeLaunch.role === roleName ? " btn-loading" : ""}`} type="button" disabled={unavailable || Boolean(activeLaunch) || !selectedAccount} onClick={() => void launchRole("proxy", role)}>启动</button>
+                  <button className={`role-white-btn${activeLaunch?.action === "game" && activeLaunch.role === roleName ? " btn-loading" : ""}`} type="button" disabled={unavailable || Boolean(activeLaunch) || !selectedAccount} onClick={() => void launchRole("game", role)}>白端</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <button className="detail-add-role-btn" type="button" disabled={!selectedAccount || Boolean(activeLaunch)} onClick={() => setCreateRoleOpen(true)} style={{ marginTop: 8 }}>+ 添加角色</button>
+      </div>
       {createRoleOpen ? <CreateRoleDialog accountId={value(selectedAccount, "id")} gameId={gameId} kind={kind} onClose={() => setCreateRoleOpen(false)} /> : null}
-    </div>
+    </>
   );
 }
