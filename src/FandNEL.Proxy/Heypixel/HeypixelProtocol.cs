@@ -21,6 +21,7 @@ namespace FandNEL.Proxy.Heypixel;
 [RegisterPacket(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.SetObjective, ProtocolVersion.V1206)]
 [RegisterPacket(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.SetScore, ProtocolVersion.V1206)]
 [RegisterPacket(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.ResetScore, ProtocolVersion.V1206)]
+[RegisterPacket(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.SystemChat, ProtocolVersion.V1206)]
 [RegisterPacket(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.StartConfiguration, ProtocolVersion.V1206)]
 [RegisterPacket(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.SpawnEntity, ProtocolVersion.V1206)]
 [RegisterPacket(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.EntityMove, ProtocolVersion.V1206)]

@@ -67,4 +67,59 @@ public sealed class PlayerInfoUpdatePacket
     }
 
     public byte[] Write() => (byte[])_payload.Clone();
+
+    /// <summary>就地转换 TAB 条目 displayName 文本组件；发生变化时返回重写后的新实例，否则返回 null。</summary>
+    internal PlayerInfoUpdatePacket? WithConvertedComponents(Func<NbtTag, bool> convert)
+    {
+        if ((Actions & 0x20) == 0) return null;
+        var bytes = _payload;
+        var reader = new PacketReader(bytes);
+        reader.ReadByte();
+        var count = MinecraftPacketValidation.ReadCount(reader);
+        List<(int Start, int End, NbtTag Tag)> replacements = [];
+        for (var index = 0; index < count; index++)
+        {
+            reader.ReadUuid();
+            if ((Actions & 0x01) != 0)
+            {
+                reader.ReadString(16);
+                var properties = MinecraftPacketValidation.ReadCount(reader);
+                for (var property = 0; property < properties; property++)
+                {
+                    reader.ReadString();
+                    reader.ReadString();
+                    if (reader.ReadBoolean()) reader.ReadString();
+                }
+            }
+            if ((Actions & 0x02) != 0 && reader.ReadBoolean())
+            {
+                reader.ReadUuid();
+                reader.ReadLong();
+                reader.ReadByteArray(512);
+                reader.ReadByteArray(4096);
+            }
+            if ((Actions & 0x04) != 0) reader.ReadVarInt();
+            if ((Actions & 0x08) != 0) reader.ReadBoolean();
+            if ((Actions & 0x10) != 0) reader.ReadVarInt();
+            if ((Actions & 0x20) != 0 && reader.ReadBoolean())
+            {
+                var start = reader.Position;
+                var displayName = reader.ReadNetworkNbt();
+                var end = reader.Position;
+                if (convert(displayName)) replacements.Add((start, end, displayName));
+            }
+        }
+        MinecraftPacketValidation.RequireEnd(reader);
+        if (replacements.Count == 0) return null;
+        using var writer = new PacketWriter();
+        var copied = 0;
+        foreach (var (start, end, tag) in replacements)
+        {
+            writer.WriteBytes(bytes.AsSpan(copied, start - copied));
+            writer.WriteNetworkNbt(tag);
+            copied = end;
+        }
+        writer.WriteBytes(bytes.AsSpan(copied));
+        return new PlayerInfoUpdatePacket(Actions, Entries, writer.ToArray());
+    }
 }

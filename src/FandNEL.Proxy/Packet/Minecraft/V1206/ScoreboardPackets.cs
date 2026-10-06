@@ -20,6 +20,29 @@ public sealed record ScoreNumberFormat(ScoreNumberFormatKind Kind, NbtTag? Conte
             _ => throw new InvalidDataException("计分板数字格式无效。")
         };
     }
+
+    internal static void WriteOptional(PacketWriter writer, ScoreNumberFormat? format)
+    {
+        if (format is null)
+        {
+            writer.WriteBoolean(false);
+            return;
+        }
+        writer.WriteBoolean(true).WriteVarInt((int)format.Kind);
+        switch (format.Kind)
+        {
+            case ScoreNumberFormatKind.Blank:
+                break;
+            case ScoreNumberFormatKind.Styled:
+                writer.WriteNetworkNbtCompound((NbtCompound)format.Content!);
+                break;
+            case ScoreNumberFormatKind.Fixed:
+                writer.WriteNetworkNbt(format.Content!);
+                break;
+            default:
+                throw new InvalidDataException("计分板数字格式无效。");
+        }
+    }
 }
 
 [RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.DisplayObjective, ProtocolVersion.V1206)]
@@ -57,6 +80,22 @@ public sealed record SetObjectivePacket(string Name, byte Mode, NbtTag? DisplayN
         MinecraftPacketValidation.RequireEnd(reader);
         return new(name, mode, displayName, renderType, numberFormat);
     }
+
+    public byte[] Write()
+    {
+        using var writer = new PacketWriter();
+        writer.WriteString(Name).WriteByte(Mode);
+        if (Mode != 1)
+        {
+            writer.WriteNetworkNbt(DisplayName!).WriteVarInt(RenderType!.Value);
+            ScoreNumberFormat.WriteOptional(writer, NumberFormat);
+        }
+        return writer.ToArray();
+    }
+
+    /// <summary>就地转换 displayName 文本组件；发生变化时返回可转发的新实例，否则返回 null。</summary>
+    internal SetObjectivePacket? WithConvertedComponents(Func<NbtTag, bool> convert) =>
+        DisplayName is not null && convert(DisplayName) ? this : null;
 }
 
 [RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.SetScore, ProtocolVersion.V1206)]
@@ -73,6 +112,20 @@ public sealed record SetScorePacket(string Owner, string ObjectiveName, int Valu
         MinecraftPacketValidation.RequireEnd(reader);
         return new(owner, objective, value, displayName, numberFormat);
     }
+
+    public byte[] Write()
+    {
+        using var writer = new PacketWriter();
+        writer.WriteString(Owner).WriteString(ObjectiveName).WriteVarInt(Value);
+        writer.WriteBoolean(DisplayName is not null);
+        if (DisplayName is not null) writer.WriteNetworkNbt(DisplayName);
+        ScoreNumberFormat.WriteOptional(writer, NumberFormat);
+        return writer.ToArray();
+    }
+
+    /// <summary>就地转换 displayName 文本组件；发生变化时返回可转发的新实例，否则返回 null。</summary>
+    internal SetScorePacket? WithConvertedComponents(Func<NbtTag, bool> convert) =>
+        DisplayName is not null && convert(DisplayName) ? this : null;
 }
 
 [RegisterPacketModel(ConnectionState.Play, PacketDirection.ClientBound, MinecraftPacketIds.Clientbound.ResetScore, ProtocolVersion.V1206)]

@@ -16,6 +16,8 @@ public sealed class HandshakeHandler : IPacketHandler
 
         var connection = context.Connection;
         connection.Version = version;
+        if (nextState == ConnectionState.Login)
+            DetectForgeClient(connection, packet.ServerAddress);
         var suffix = connection.AddForgeHandshakeSuffix ? version switch
         {
             <= ProtocolVersion.V1122 => "\0FML\0",
@@ -31,5 +33,21 @@ public sealed class HandshakeHandler : IPacketHandler
         connection.ClientState = nextState;
         connection.ServerState = nextState;
         return ValueTask.CompletedTask;
+    }
+
+    /// <summary>按客户端握手地址里的 FML 标记识别真实 Forge 客户端，供迁移的 Forge 伪造分支判断。</summary>
+    private static void DetectForgeClient(Sessions.MinecraftConnection connection, string? serverAddress)
+    {
+        var state = connection.ServerProtocols;
+        if (string.IsNullOrEmpty(serverAddress))
+        {
+            state.IsVanilla = true;
+            return;
+        }
+
+        var isForge = serverAddress.Contains("\0FML", StringComparison.Ordinal)
+            || serverAddress.Contains("FORGE", StringComparison.Ordinal);
+        state.IsForgeClient = isForge;
+        state.IsVanilla = !isForge;
     }
 }

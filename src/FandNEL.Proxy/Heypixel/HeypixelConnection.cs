@@ -59,6 +59,7 @@ internal sealed class HeypixelConnection(MinecraftConnection connection)
 
             if (context.Direction == PacketDirection.ClientBound)
             {
+                if (context.State == ConnectionState.Play) HeypixelVipTags.Apply(context);
                 switch (context.PacketId)
                 {
                     case MinecraftPacketIds.Clientbound.StartConfiguration:
