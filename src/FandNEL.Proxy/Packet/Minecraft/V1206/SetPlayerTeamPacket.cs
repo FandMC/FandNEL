@@ -42,6 +42,32 @@ public sealed record SetPlayerTeamPacket(string Name, byte Mode, byte[] Remainin
         return this with { RemainingData = writer.ToArray() };
     }
 
+    /// <summary>就地转换 displayName/prefix/suffix 文本组件；发生变化时返回重写后的新实例，否则返回 null。</summary>
+    internal SetPlayerTeamPacket? WithConvertedComponents(Func<NbtTag, bool> convert)
+    {
+        if (Mode is not (0 or 2)) return null;
+        var data = ReadData(out _, out _);
+        if (data.Parameters is not { } parameters) return null;
+        var changed = convert(parameters.DisplayName);
+        changed |= convert(parameters.Prefix);
+        changed |= convert(parameters.Suffix);
+        if (!changed) return null;
+        using var writer = new PacketWriter();
+        writer.WriteNetworkNbt(parameters.DisplayName)
+            .WriteByte(parameters.FriendlyFlags)
+            .WriteString(parameters.NameTagVisibility, 40)
+            .WriteString(parameters.CollisionRule, 40)
+            .WriteVarInt(parameters.Color)
+            .WriteNetworkNbt(parameters.Prefix)
+            .WriteNetworkNbt(parameters.Suffix);
+        if (Mode == 0)
+        {
+            writer.WriteVarInt(data.Players.Count);
+            foreach (var player in data.Players) writer.WriteString(player);
+        }
+        return this with { RemainingData = writer.ToArray() };
+    }
+
     private SetPlayerTeamData ReadData(out int visibilityStart, out int visibilityEnd)
     {
         Validate();

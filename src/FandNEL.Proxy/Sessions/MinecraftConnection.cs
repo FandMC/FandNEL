@@ -13,6 +13,7 @@ using DotNetty.Transport.Channels.Sockets;
 using FandNEL.Proxy.Models;
 using FandNEL.Proxy.Heypixel;
 using FandNEL.Proxy.Protocol;
+using FandNEL.Proxy.Servers;
 using FandNEL.Proxy.Packet.Minecraft.Nbt;
 using Serilog;
 
@@ -26,6 +27,7 @@ public sealed class MinecraftConnection
     private readonly PacketRegistry _registry;
     private readonly ProxyOptions _options;
     private readonly Lazy<HeypixelConnection> _heypixel;
+    private readonly Lazy<ServerProtocolState> _serverProtocols;
     private readonly Action<string> _onJoined;
     private readonly Action<Exception> _onFailed;
     private readonly CancellationTokenSource _connectionLifetime = new();
@@ -45,6 +47,7 @@ public sealed class MinecraftConnection
         _registry = registry;
         _options = options;
         _heypixel = new Lazy<HeypixelConnection>(() => new HeypixelConnection(this));
+        _serverProtocols = new Lazy<ServerProtocolState>(() => new ServerProtocolState());
         _onJoined = onJoined;
         _onFailed = onFailed;
         Target = target;
@@ -58,6 +61,8 @@ public sealed class MinecraftConnection
     internal ProxyOptions Options => _options;
     internal CancellationToken LifetimeToken => _connectionLifetime.Token;
     internal HeypixelConnection Heypixel => _heypixel.Value;
+    /// <summary>本次迁移的服务器协议（Forge 伪造、DFDL、germ）的每连接状态。</summary>
+    internal ServerProtocolState ServerProtocols => _serverProtocols.Value;
     internal bool IsClosed => Volatile.Read(ref _closed) != 0 || !_client.Active;
     public IChannel? ServerChannel { get; private set; }
     public ProtocolVersion Version { get => (ProtocolVersion)Volatile.Read(ref _version); internal set => Volatile.Write(ref _version, (int)value); }
