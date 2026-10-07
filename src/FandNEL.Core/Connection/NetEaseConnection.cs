@@ -61,7 +61,7 @@ public static class NetEaseConnection
         var token = timeout.Token;
         using var client = new TcpClient();
         using var api = new WebNexusApi(request.NexusToken);
-        Log.Information("NetEase 认证: 正在连接认证服 {Address}:{Port}", address, port);
+        Log.Debug("NetEase 认证: 正在连接认证服 {Address}:{Port}", address, port);
         await client.ConnectAsync(address, port, token).ConfigureAwait(false);
         await using var stream = client.GetStream();
         using var details = await stream.ReadSteamWithInt16Async(token).ConfigureAwait(false);
@@ -72,7 +72,7 @@ public static class NetEaseConnection
         if (buildEstablishing is not null) establishing = buildEstablishing(request.NexusToken, request.GameVersion, request.UserId, request.UserToken, context, "netease");
         else
         {
-            Log.Information("NetEase 认证: 握手完成，正在请求 Codexus 计算握手载荷");
+            Log.Debug("NetEase 认证: 握手完成，正在请求 Codexus 计算握手载荷");
             var json = await api.ComputePublicHandshakeBodyAsync(request.UserId, request.UserToken, Convert.ToBase64String(context), "netease", request.GameVersion, token).ConfigureAwait(false);
             establishing = Convert.FromBase64String(JsonSerializer.Deserialize<EntityHandshake>(json)?.HandshakeBody ?? throw new InvalidDataException("Codexus 未返回认证握手。"));
         }
@@ -86,7 +86,7 @@ public static class NetEaseConnection
         if (buildJoinServerMessage is not null) join = buildJoinServerMessage(request.NexusToken, encrypt, request.ServerId, gameId, request.GameVersion, request.ModInfo, "netease", request.UserId, remoteKey);
         else
         {
-            Log.Information("NetEase 认证: 握手通过，正在请求 Codexus 计算进服载荷");
+            Log.Debug("NetEase 认证: 握手通过，正在请求 Codexus 计算进服载荷");
             var json = await api.ComputePublicAuthenticationBodyAsync(request.ServerId, gameId, request.GameVersion, request.ModInfo, "netease", request.UserId, Convert.ToBase64String(remoteKey), token).ConfigureAwait(false);
             var authBody = JsonSerializer.Deserialize<AuthenticationBody>(json)?.AuthBody ?? throw new InvalidDataException("Codexus 未返回进服认证载荷。");
             join = encrypt.PackMessage(9, Convert.FromBase64String(authBody));
@@ -95,7 +95,7 @@ public static class NetEaseConnection
         using var result = await stream.ReadSteamWithInt16Async(token).ConfigureAwait(false);
         var (messageType, authentication) = decrypt.UnpackMessage(result.ToArray());
         if (messageType != 9 || authentication.Length == 0 || authentication[0] != 0) throw new InvalidDataException("网易进服认证失败。");
-        Log.Information("NetEase 认证: 进服认证通过");
+        Log.Debug("NetEase 认证: 进服认证通过");
     }
 
     private sealed record AuthenticationBody([property: System.Text.Json.Serialization.JsonPropertyName("authBody")] string AuthBody);
