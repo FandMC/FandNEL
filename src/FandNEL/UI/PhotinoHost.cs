@@ -42,7 +42,9 @@ public sealed class PhotinoHost : IDisposable
 
         _window = new PhotinoWindow()
             .SetTitle("FandNEL")
-            .SetChromeless(true)
+            // Windows 维持无边框 + React 自绘标题栏；Linux/macOS 使用系统标题栏，
+            // 因为无边框窗口的拖动依赖 user32 消息模拟，非 Windows 没有等价机制。
+            .SetChromeless(OperatingSystem.IsWindows())
             .SetGrantBrowserPermissions(true)
             .SetTemporaryFilesPath(dataPath)
             .SetSize(1200, 750)
@@ -52,7 +54,8 @@ public sealed class PhotinoHost : IDisposable
             .RegisterWebMessageReceivedHandler(HandleWindowMessage)
             .Load(_runtime.WebSocket.HttpAddress);
 
-        Log.Information("FandNEL UI loaded from {Address}", _runtime.WebSocket.HttpAddress);
+        Log.Information("FandNEL UI loaded from {Address} (chromeless={Chromeless})",
+            _runtime.WebSocket.HttpAddress, OperatingSystem.IsWindows());
         _window.WaitForClose();
         _window = null;
     }
@@ -91,10 +94,7 @@ public sealed class PhotinoHost : IDisposable
             switch (action)
             {
                 case DragAction:
-                    if (window.WindowHandle == IntPtr.Zero)
-                        throw new InvalidOperationException("窗口尚未初始化，无法拖动。");
-                    ReleaseCapture();
-                    SendMessageW(window.WindowHandle, WmNcLButtonDown, (IntPtr)HtCaption, IntPtr.Zero);
+                    DragWindow(window);
                     break;
                 case MinimizeAction:
                     window.SetMinimized(true);
@@ -109,6 +109,17 @@ public sealed class PhotinoHost : IDisposable
         });
     }
 
+    /// <summary>Windows 无边框窗口用标题栏命中测试模拟拖动；非 Windows 由系统标题栏处理。</summary>
+    private static void DragWindow(PhotinoWindow window)
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+        if (window.WindowHandle == IntPtr.Zero)
+            throw new InvalidOperationException("窗口尚未初始化，无法拖动。");
+        ReleaseCapture();
+        SendMessageW(window.WindowHandle, WmNcLButtonDown, (IntPtr)HtCaption, IntPtr.Zero);
+    }
+
     [DllImport("user32.dll", ExactSpelling = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ReleaseCapture();
@@ -120,6 +131,16 @@ public sealed class PhotinoHost : IDisposable
     {
         var window = _window;
         _window = null;
-        window?.Close();
+        if (window is null)
+            return;
+        try
+        {
+            window.Close();
+        }
+        catch (Exception exception)
+        {
+            // 窗口初始化失败时 Close 不可用；保留原始启动异常，不掩盖退出原因。
+            Log.Warning(exception, "关闭 Photino 窗口时窗口尚未初始化。");
+        }
     }
 }

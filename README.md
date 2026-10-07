@@ -23,6 +23,17 @@ dotnet build "FandNEL.slnx" -c Debug
 dotnet run --project "src/FandNEL/FandNEL.csproj" -c Debug
 ```
 
+## 跨平台支持（Linux / macOS）
+
+主工程目标框架为 `net9.0`，同一解决方案可在 Windows、Ubuntu、Arch Linux 和 macOS 构建运行。平台差异集中收敛，Windows 行为保持不变：
+
+- **窗口**：Windows 维持无边框 + React 自绘标题栏；Linux/macOS 因无边框拖动依赖 user32 消息模拟，改用系统标题栏。`Photino.NET` 自 4.0.x 起捆绑链接 WebKitGTK 4.1 的原生库：Ubuntu 安装 `libwebkit2gtk-4.1-0`，Arch/CachyOS 安装 `webkit2gtk-4.1`（官方仓库），macOS 使用内置 WKWebView 无需额外依赖。
+- **解压**：Windows 沿用 `SharpSevenZip` + `7z.dll`；Linux/macOS 无 7z.dll 可加载，改用系统 7z 命令整包解压（Ubuntu `p7zip-full`，Arch `p7zip`，macOS `brew install sevenzip`），解压结果统一拒绝符号链接。
+- **Java 运行时**：Windows 逻辑不变；Linux/macOS 按 OS 与架构从 Adoptium 下载 JRE 8/17/21 的 tar.gz，解压后恢复 `bin` 与 `jspawnhelper` 的可执行位。
+- **BMCLAPI 资源修复**：网易客户端包按 Windows 分发。非 Windows 启动时自动经 `bmclapi2.bangbang93.com` 修复：拉取 vanilla 版本 JSON，补齐当前 OS/架构适用的 libraries（SHA1 校验）、natives 本机库（解压到 `versions/<版本>/natives`）和缺失的 assets 对象（并发 8，按 hash 校验）；classpath 中 `natives-windows` 库替换为对应平台库。库或 natives 修复失败会中止启动，assets 对象失败仅记录告警，可再次启动重试。
+- **安全存储**：Windows 继续使用 DPAPI；Linux/macOS 使用 AES-GCM，密钥保存在用户数据目录（`~/.local/share/FandNEL/keys/protected-key`，0600 权限），删除该文件等同 DPAPI 用户级失效。
+- **数据迁移**：`%LOCALAPPDATA%/FandNEL` 在非 Windows 上对应 `~/.local/share/FandNEL`（macOS 为 `~/Library/Application Support/FandNEL`），迁移的核对后删除在 POSIX 上直接执行。
+
 前端沿用 NeoOpenNEL 的主页、布局、组件样式及明暗主题，业务仍通过 FandNEL 的本地 WebSocket Gateway 和 `/api/settings` 执行。外观偏好独立保存在浏览器的 `fandnel:appearance` 中，不改变账号或游戏设置。左侧导航使用简体中文；账号渠道、在线状态和登录方式保留英文，其余固定文案使用简体中文。
 
 网络服与租赁服详情共用 NeoOpenNEL 原详情结构，仅映射 FandNEL 的数据与请求；不添加另一套详情布局。Mods 和 Realms 页面及导航已移除。桌面窗口不使用 Windows 默认标题栏，React 绘制标题栏并通过 Photino 消息桥执行拖动、最小化、最大化/还原和关闭；普通浏览器不显示不可用的窗口控制按钮。

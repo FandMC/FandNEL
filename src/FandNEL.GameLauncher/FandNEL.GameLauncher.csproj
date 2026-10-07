@@ -18,6 +18,10 @@
           CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <None Include="$(PkgSharpSevenZip)/build/x86/7z.dll" Link="x86/7z.dll"
           CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <None Include="Assets/native/netease-auth-bridge-dll.so" Link="Assets/native/netease-auth-bridge-dll.so"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <None Include="Assets/native/netease-auth-bridge-dll.c" Link="Assets/native/netease-auth-bridge-dll.c"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <None Include="$(PkgSharpSevenZip)/LICENSE" Link="licenses/SharpSevenZip-LICENSE.txt"
           CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <None Update="Assets/licenses/7-Zip-LICENSE.txt" Link="licenses/7-Zip-LICENSE.txt"
