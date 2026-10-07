@@ -4,6 +4,7 @@ using FandNEL.Core.Entities.WPFLauncher.NetGame.Mods;
 using FandNEL.Core.Protocol;
 using FandNEL.GameLauncher.Models;
 using FandNEL.GameLauncher.Processes;
+using FandNEL.GameLauncher.Services.Repair;
 
 namespace FandNEL.GameLauncher.Services.Java;
 
@@ -40,6 +41,13 @@ public sealed class JavaLauncherService(WPFLauncher launcher, LauncherPaths path
             var java = await javaRuntime.PrepareAsync(request, progress, cancellationToken).ConfigureAwait(false);
             Report(progress, LaunchStage.Downloading, "正在准备 Minecraft 客户端资源。");
             await installer.PrepareClientAsync(request, progress, cancellationToken).ConfigureAwait(false);
+            if (!OperatingSystem.IsWindows())
+            {
+                // 网易客户端包按 Windows 分发；Linux/macOS 通过 BMCLAPI 修复当前平台的库、natives 和资源对象。
+                Report(progress, LaunchStage.Downloading, "正在通过 BMCLAPI 修复本平台资源。");
+                await new VanillaResourceRepairService(_http, paths)
+                    .RepairAsync(request.GameVersion, progress, cancellationToken).ConfigureAwait(false);
+            }
             mods = await installer.PrepareModsAsync(request, progress, cancellationToken).ConfigureAwait(false);
             var runtime = installer.PrepareRuntime(request);
 

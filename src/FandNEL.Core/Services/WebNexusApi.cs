@@ -119,6 +119,8 @@ public sealed class WebNexusApi : IDisposable
         var uri = new Uri(ServiceAddress, endpoint);
         var request = new HttpRequestMessage(method, uri);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        // CDN 风控通常拒绝空 User-Agent（BMCLAPI 同款行为），显式携带项目标识。
+        request.Headers.UserAgent.ParseAdd("FandNEL/1.0 (+https://github.com/FandMC/FandNEL)");
         if (includeAuthorization && uri.Scheme == ServiceAddress.Scheme && uri.Authority == ServiceAddress.Authority
             && !string.IsNullOrWhiteSpace(_token))
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _token);
