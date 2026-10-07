@@ -74,7 +74,9 @@ internal static class MinecraftCommandBuilder
                     if (++i == provided.Count)
                         throw new InvalidDataException($"JVM 参数 {token} 缺少值。");
                     arguments.Add(string.Join(Path.PathSeparator, Expand(provided[i]).Split(';')
-                        .Select(path => Path.IsPathRooted(path) ? path : Path.Combine(paths.Minecraft, path))));
+                        .Select(NormalizeRelativePath)
+                        .Select(path => Path.IsPathRooted(path) ? path : Path.Combine(paths.Minecraft, path))
+                        .Select(ReplaceWindowsNativesJar)));
                 }
             }
             arguments.AddRange(SplitArguments(game.GetString() ?? string.Empty).Select(Expand));
@@ -149,6 +151,23 @@ internal static class MinecraftCommandBuilder
         }
     }
 
+    /// <summary>网易清单按 Windows 编写，非 Windows 平台把反斜杠路径转为本地分隔符。</summary>
+    private static string NormalizeRelativePath(string path) =>
+        OperatingSystem.IsWindows() ? path : path.Replace('\\', '/');
+
+    /// <summary>
+    /// 非 Windows 平台把 classpath 中的 windows 本机库替换为 BMCLAPI 修复后的对应平台库；
+    /// 修复未完成或命名不一致时保留原路径，交由启动错误提示定位。
+    /// </summary>
+    private static string ReplaceWindowsNativesJar(string path)
+    {
+        if (OperatingSystem.IsWindows() || !path.Contains("natives-windows", StringComparison.Ordinal))
+            return path;
+        var classifier = PlatformRuntime.OsRuleName == "osx" ? "natives-macos" : "natives-linux";
+        var candidate = path.Replace("natives-windows", classifier, StringComparison.Ordinal);
+        return File.Exists(candidate) ? candidate : path;
+    }
+
     private static IEnumerable<string> ReadArguments(JsonElement array)
     {
         foreach (var argument in array.EnumerateArray())
@@ -202,7 +221,8 @@ internal static class MinecraftCommandBuilder
         {
             if (rule.TryGetProperty("features", out var features) && features.EnumerateObject().Any(feature => feature.Value.GetBoolean()))
                 continue;
-            if (rule.TryGetProperty("os", out var os) && os.TryGetProperty("name", out var name) && name.GetString() != "windows")
+            // Mojang 的 OS 规则：windows / linux / osx；按当前运行平台匹配。
+            if (rule.TryGetProperty("os", out var os) && os.TryGetProperty("name", out var name) && name.GetString() != PlatformRuntime.OsRuleName)
                 continue;
             allowed = rule.GetProperty("action").GetString() == "allow";
         }

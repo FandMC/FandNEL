@@ -193,6 +193,17 @@ internal static class ApplicationDataMigration
             ClearReadOnly(source);
             // 同一源句柄完成核对和删除，禁止其他实例在核对后替换源路径。
             // 目标先打开、最后关闭，确保旧文件删除前新文件一直有效。
+            if (!OperatingSystem.IsWindows())
+            {
+                // POSIX 文件语义没有 Windows 的替换限制，核对后直接删除即可。
+                using var portableInput = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using var portableOutput = new FileStream(destination, FileMode.Open, FileAccess.Read, FileShare.Read);
+                if (portableInput.Length != portableOutput.Length
+                    || !CryptographicOperations.FixedTimeEquals(SHA256.HashData(portableInput), SHA256.HashData(portableOutput)))
+                    return false;
+                File.Delete(source);
+                return true;
+            }
             using var output = new FileStream(destination, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var sourceHandle = CreateFileW(source, GenericRead | DeleteAccess, FileShare.Read,
                 IntPtr.Zero, FileMode.Open, FileAttributes.Normal, IntPtr.Zero);
