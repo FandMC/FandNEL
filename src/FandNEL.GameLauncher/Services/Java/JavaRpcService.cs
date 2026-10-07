@@ -10,6 +10,7 @@ using FandNEL.Core.Entities.WPFLauncher.RPC;
 using FandNEL.Core.Protocol;
 using FandNEL.Core.Skip32;
 using FandNEL.GameLauncher.Models;
+using Serilog;
 
 namespace FandNEL.GameLauncher.Services.Java;
 
@@ -103,6 +104,11 @@ internal sealed class JavaRpcService(WPFLauncher launcher, JavaLaunchRequest req
                 break;
             case 19:
             case 4612:
+                break;
+            default:
+                // 白端联调定位：mod 发出的未实现 RPC 会一直等到超时，必须能看到它请求了什么。
+                Log.Information("Java RPC 未处理消息: id={Id}, 长度={Length}, 载荷={PayloadHex}",
+                    id, payload.Length, Convert.ToHexString(payload.ToArray()));
                 break;
         }
     }

@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using FandNEL.Core.Connection;
+using Serilog;
 
 namespace FandNEL.Core.Connection.Protocols;
 
@@ -77,13 +78,18 @@ public sealed class AuthLibProtocol : IDisposable
                     await ReadFieldAsync(stream, cancellationToken).ConfigureAwait(false));
                 if (string.IsNullOrWhiteSpace(gameId) || string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(certificate))
                     throw new InvalidDataException("Authlib 请求字段缺失。");
+                Log.Information("Authlib 认证请求到达: 游戏 {GameId}, 用户 {UserId}", gameId, userId);
                 var userToken = await _userTokenProvider(userId, cancellationToken).ConfigureAwait(false);
                 if (string.IsNullOrWhiteSpace(userToken)) throw new InvalidOperationException("未找到对应用户的网易游戏令牌。");
                 await NetEaseConnection.AuthenticateAsync(new JavaJoinRequest(certificate, gameId, _version, _modList, _nexusToken, int.Parse(userId), userToken), cancellationToken).ConfigureAwait(false);
                 result = 0;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
-            catch { result = 1; }
+            catch (Exception exception)
+            {
+                // 认证失败原因此前被完全吞掉，联调时无法定位；只记录类型与消息，不输出证书内容。
+                Log.Error(exception, "Authlib 认证失败");
+            }
             var response = new byte[4];
             BinaryPrimitives.WriteUInt32LittleEndian(response, result);
             await stream.WriteAsync(response, cancellationToken).ConfigureAwait(false);

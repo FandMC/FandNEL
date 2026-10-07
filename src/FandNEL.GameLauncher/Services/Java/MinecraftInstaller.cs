@@ -153,8 +153,21 @@ internal sealed class MinecraftInstaller(WPFLauncher launcher, LauncherPaths pat
         CopyDirectory(paths.CustomMods, mods);
 
         var native = Path.Combine(paths.Resources, "api-ms-win-crt-utility-l1-1-1.dll");
-        if (File.Exists(native))
+        if (OperatingSystem.IsWindows() && File.Exists(native))
             CopyFile(native, Path.Combine(paths.Minecraft, "versions", VersionName(request.GameVersion), "natives", "runtime", Path.GetFileName(native)));
+        if (!OperatingSystem.IsWindows())
+        {
+            // 白端认证桥接：mod 的 Library.LoadLibrary 会首先 System.load 固定文件名
+            // api-ms-win-crt-utility-l1-1-1.dll（Windows CRT，Linux/macOS 无法加载，
+            // 且 UnsatisfiedLinkError 属 Error 不会被 SafeLoadLibrary 捕获，进程直接退出）。
+            // 因此用桥接 ELF 覆盖该文件名：System.load 成功后 JNI_OnLoad 为 mod 的
+            // Library 注册纯托管实现（认证走本地 Authlib 服务，其余 native 为安全空实现）。
+            var bridge = Path.Combine(AppContext.BaseDirectory, "Assets", "native", "netease-auth-bridge-dll.so");
+            if (File.Exists(bridge))
+                CopyFile(bridge, Path.Combine(paths.Minecraft, "versions", VersionName(request.GameVersion), "natives", "runtime", "api-ms-win-crt-utility-l1-1-1.dll"));
+            else
+                throw new FileNotFoundException("缺少白端认证桥接库，无法在当前平台启动网易客户端。", bridge);
+        }
         return runtime;
     }
 
